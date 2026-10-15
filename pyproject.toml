@@ -1,0 +1,9 @@
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.pylint.main]
+py-version = "3.9"
+
+[tool.pylint.format]
+max-line-length = 88
