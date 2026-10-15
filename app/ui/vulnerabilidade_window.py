@@ -7,9 +7,17 @@ from app.exceptions import VulnerabilidadeNaoEncontradaError
 from app.models.ativo import Ativo
 from app.models.enums import rotulo_amigavel
 from app.services.vulnerabilidade_service import VulnerabilidadeService
+from app.ui.componentes import criar_tabela
 from app.ui.vulnerabilidade_form import JanelaFormularioVulnerabilidade
 
-COLUNAS_DA_TABELA = ("id", "descricao", "categoria", "nota_cvss", "severidade", "status")
+COLUNAS_DA_TABELA = (
+    ("id", "ID", 40),
+    ("descricao", "Descrição", 200),
+    ("categoria", "Categoria", 110),
+    ("nota_cvss", "Nota CVSS", 80),
+    ("severidade", "Severidade", 100),
+    ("status", "Status", 130),
+)
 
 
 class JanelaVulnerabilidades(tk.Toplevel):
@@ -47,37 +55,28 @@ class JanelaVulnerabilidades(tk.Toplevel):
         self._rotulo_de_situacao = ttk.Label(quadro, text="", foreground="#555555")
         self._rotulo_de_situacao.pack(fill="x", pady=(0, 8))
 
-        self._tabela = ttk.Treeview(quadro, columns=COLUNAS_DA_TABELA, show="headings")
-        for coluna, titulo, largura in (
-            ("id", "ID", 40),
-            ("descricao", "Descrição", 200),
-            ("categoria", "Categoria", 110),
-            ("nota_cvss", "Nota CVSS", 80),
-            ("severidade", "Severidade", 100),
-            ("status", "Status", 130),
-        ):
-            self._tabela.heading(coluna, text=titulo)
-            self._tabela.column(coluna, width=largura, anchor="w")
-        self._tabela.pack(fill="both", expand=True)
+        self._tabela = criar_tabela(quadro, COLUNAS_DA_TABELA)
 
         quadro_de_botoes = ttk.Frame(quadro)
         quadro_de_botoes.pack(fill="x", pady=(10, 0))
-        ttk.Button(quadro_de_botoes, text="Nova", command=self._abrir_formulario_nova).pack(
-            side="left", padx=5
-        )
-        ttk.Button(quadro_de_botoes, text="Editar", command=self._abrir_formulario_editar).pack(
-            side="left", padx=5
-        )
-        ttk.Button(quadro_de_botoes, text="Excluir", command=self._excluir_selecionada).pack(
-            side="left", padx=5
-        )
+        ttk.Button(
+            quadro_de_botoes, text="Nova", command=self._abrir_formulario_nova
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            quadro_de_botoes, text="Editar", command=self._abrir_formulario_editar
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            quadro_de_botoes, text="Excluir", command=self._excluir_selecionada
+        ).pack(side="left", padx=5)
         ttk.Button(quadro_de_botoes, text="Fechar", command=self.destroy).pack(
             side="right", padx=5
         )
 
     def _atualizar_tabela(self) -> None:
         self._tabela.delete(*self._tabela.get_children())
-        vulnerabilidades = self._servico_de_vulnerabilidades.listar_por_ativo(self._ativo.id)
+        vulnerabilidades = self._servico_de_vulnerabilidades.listar_por_ativo(
+            self._ativo.id
+        )
 
         if not vulnerabilidades:
             self._rotulo_de_situacao.configure(
@@ -107,7 +106,9 @@ class JanelaVulnerabilidades(tk.Toplevel):
         selecao = self._tabela.selection()
         if not selecao:
             messagebox.showwarning(
-                "Nenhuma seleção", "Selecione uma vulnerabilidade na tabela.", parent=self
+                "Nenhuma seleção",
+                "Selecione uma vulnerabilidade na tabela.",
+                parent=self,
             )
             return None
         return int(selecao[0])

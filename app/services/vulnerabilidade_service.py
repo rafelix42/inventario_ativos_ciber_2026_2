@@ -22,7 +22,7 @@ NOTA_CVSS_MAXIMA = 10.0
 
 
 class VulnerabilidadeService:
-    """Camada de regras de negócio para cadastro, edição e exclusão de vulnerabilidades."""
+    """Regras de negócio para cadastro, edição e exclusão de vulnerabilidades."""
 
     def __init__(self, repositorio_de_vulnerabilidades: VulnerabilidadeRepository):
         self._repositorio = repositorio_de_vulnerabilidades
@@ -37,14 +37,16 @@ class VulnerabilidadeService:
         for vulnerabilidade in self._repositorio.listar_todas():
             self._indexar_vulnerabilidade_no_cache(vulnerabilidade)
 
-    def _indexar_vulnerabilidade_no_cache(self, vulnerabilidade: Vulnerabilidade) -> None:
+    def _indexar_vulnerabilidade_no_cache(
+        self, vulnerabilidade: Vulnerabilidade
+    ) -> None:
         self._vulnerabilidades_por_id[vulnerabilidade.id] = vulnerabilidade
-        self._vulnerabilidades_por_ativo.setdefault(vulnerabilidade.ativo_id, []).append(
-            vulnerabilidade
-        )
+        self._vulnerabilidades_por_ativo.setdefault(
+            vulnerabilidade.ativo_id, []
+        ).append(vulnerabilidade)
 
     def listar_por_ativo(self, ativo_id: int) -> List[Vulnerabilidade]:
-        """Retorna as vulnerabilidades associadas a um ativo (lista vazia se não houver)."""
+        """Retorna as vulnerabilidades de um ativo (lista vazia se não houver)."""
         return list(self._vulnerabilidades_por_ativo.get(ativo_id, []))
 
     def cadastrar(
@@ -130,7 +132,9 @@ class VulnerabilidadeService:
 
         self._repositorio.excluir(vulnerabilidade_id)
         del self._vulnerabilidades_por_id[vulnerabilidade_id]
-        self._vulnerabilidades_por_ativo[vulnerabilidade.ativo_id].remove(vulnerabilidade)
+        self._vulnerabilidades_por_ativo[vulnerabilidade.ativo_id].remove(
+            vulnerabilidade
+        )
         logger.info(
             "Vulnerabilidade excluída: id=%s ativo_id=%s descricao=%r",
             vulnerabilidade.id,
@@ -173,7 +177,8 @@ class VulnerabilidadeService:
         for nome_do_campo, valor in campos.items():
             if valor is None or not str(valor).strip():
                 logger.warning(
-                    "Validação de vulnerabilidade falhou: campo obrigatório '%s' não foi informado.",
+                    "Validação de vulnerabilidade falhou: "
+                    "campo obrigatório '%s' não foi informado.",
                     nome_do_campo,
                 )
                 raise ErroDeValidacao(f"O campo '{nome_do_campo}' é obrigatório.")
@@ -181,17 +186,26 @@ class VulnerabilidadeService:
     @staticmethod
     def _validar_nota_cvss(nota_cvss: float) -> None:
         if isinstance(nota_cvss, bool) or not isinstance(nota_cvss, (int, float)):
-            logger.warning("Validação de vulnerabilidade falhou: nota CVSS não numérica (%r).", nota_cvss)
+            logger.warning(
+                "Validação de vulnerabilidade falhou: nota CVSS não numérica (%r).",
+                nota_cvss,
+            )
             raise ErroDeValidacao("Informe a nota CVSS como um número.")
 
-        if not (NOTA_CVSS_MINIMA <= nota_cvss <= NOTA_CVSS_MAXIMA):
-            logger.warning("Validação de vulnerabilidade falhou: nota CVSS fora da faixa (%r).", nota_cvss)
+        if not NOTA_CVSS_MINIMA <= nota_cvss <= NOTA_CVSS_MAXIMA:
+            logger.warning(
+                "Validação de vulnerabilidade falhou: nota CVSS fora da faixa (%r).",
+                nota_cvss,
+            )
             raise ErroDeValidacao(
-                f"A nota CVSS deve estar entre {NOTA_CVSS_MINIMA:.1f} e {NOTA_CVSS_MAXIMA:.1f}."
+                f"A nota CVSS deve estar entre {NOTA_CVSS_MINIMA:.1f} "
+                f"e {NOTA_CVSS_MAXIMA:.1f}."
             )
 
     @staticmethod
     def _validar_status(status: StatusVulnerabilidade) -> None:
         if not isinstance(status, StatusVulnerabilidade):
-            logger.warning("Validação de vulnerabilidade falhou: status inválido (%r).", status)
+            logger.warning(
+                "Validação de vulnerabilidade falhou: status inválido (%r).", status
+            )
             raise ErroDeValidacao("Selecione um status válido.")

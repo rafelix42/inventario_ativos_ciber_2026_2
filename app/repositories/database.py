@@ -4,7 +4,9 @@ import sqlite3
 from pathlib import Path
 
 # Caminho para o arquivo do banco de dados: pasta 'data' na raiz do projeto.
-CAMINHO_PADRAO_DO_BANCO = Path(__file__).resolve().parent.parent.parent / "data" / "inventario.db"
+CAMINHO_PADRAO_DO_BANCO = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "inventario.db"
+)
 
 
 class ConexaoBancoDeDados:
@@ -30,8 +32,7 @@ class ConexaoBancoDeDados:
         return self._conexao
 
     def _criar_tabelas_se_nao_existirem(self) -> None:
-        self._conexao.execute(
-            """
+        self._conexao.execute("""
             CREATE TABLE IF NOT EXISTS ativos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome TEXT NOT NULL,
@@ -40,10 +41,8 @@ class ConexaoBancoDeDados:
                 tipo TEXT NOT NULL,
                 descricao TEXT
             )
-            """
-        )
-        self._conexao.execute(
-            """
+            """)
+        self._conexao.execute("""
             CREATE TABLE IF NOT EXISTS vulnerabilidades (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ativo_id INTEGER NOT NULL,
@@ -53,8 +52,7 @@ class ConexaoBancoDeDados:
                 status TEXT NOT NULL,
                 FOREIGN KEY (ativo_id) REFERENCES ativos (id) ON DELETE CASCADE
             )
-            """
-        )
+            """)
         self._conexao.commit()
 
     def fechar(self) -> None:

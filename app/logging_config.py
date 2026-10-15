@@ -29,7 +29,9 @@ def configurar_logging() -> None:
 
     CAMINHO_DA_PASTA_DE_LOGS.mkdir(parents=True, exist_ok=True)
 
-    manipulador_de_arquivo = logging.FileHandler(CAMINHO_DO_ARQUIVO_DE_LOG, encoding="utf-8")
+    manipulador_de_arquivo = logging.FileHandler(
+        CAMINHO_DO_ARQUIVO_DE_LOG, encoding="utf-8"
+    )
     manipulador_de_arquivo.setLevel(logging.INFO)
 
     manipulador_de_console = logging.StreamHandler()

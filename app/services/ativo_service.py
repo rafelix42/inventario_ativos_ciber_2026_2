@@ -38,8 +38,12 @@ class AtivoService:
         """Busca um ativo pelo identificador único, usando o cache em dicionário."""
         ativo = self._ativos_por_id.get(ativo_id)
         if ativo is None:
-            logger.warning("Busca por ID falhou: nenhum ativo encontrado com id=%s.", ativo_id)
-            raise AtivoNaoEncontradoError(f"Não existe ativo cadastrado com o ID {ativo_id}.")
+            logger.warning(
+                "Busca por ID falhou: nenhum ativo encontrado com id=%s.", ativo_id
+            )
+            raise AtivoNaoEncontradoError(
+                f"Não existe ativo cadastrado com o ID {ativo_id}."
+            )
         return ativo
 
     def buscar_por_nome(self, texto_buscado: str) -> List[Ativo]:
@@ -55,10 +59,17 @@ class AtivoService:
         ]
 
     def cadastrar(
-        self, nome: str, responsavel: str, setor: str, tipo: TipoAtivo, descricao: str = ""
+        self,
+        nome: str,
+        responsavel: str,
+        setor: str,
+        tipo: TipoAtivo,
+        descricao: str = "",
     ) -> Ativo:
         """Valida e cadastra um novo ativo de TI."""
-        self._validar_campos_obrigatorios(nome=nome, responsavel=responsavel, setor=setor)
+        self._validar_campos_obrigatorios(
+            nome=nome, responsavel=responsavel, setor=setor
+        )
         self._validar_tipo_de_ativo(tipo)
 
         novo_ativo = Ativo(
@@ -94,7 +105,8 @@ class AtivoService:
         self._validar_tipo_de_ativo(tipo)
 
         valores_antes_da_alteracao = (
-            f"responsavel={ativo_existente.responsavel!r} setor={ativo_existente.setor!r} "
+            f"responsavel={ativo_existente.responsavel!r} "
+            f"setor={ativo_existente.setor!r} "
             f"tipo={ativo_existente.tipo.name}"
         )
 
@@ -105,7 +117,8 @@ class AtivoService:
 
         self._repositorio.atualizar(ativo_existente)
         logger.info(
-            "Ativo atualizado: id=%s | antes: %s | depois: responsavel=%r setor=%r tipo=%s",
+            "Ativo atualizado: id=%s | antes: %s | "
+            "depois: responsavel=%r setor=%r tipo=%s",
             ativo_existente.id,
             valores_antes_da_alteracao,
             ativo_existente.responsavel,
@@ -121,7 +134,8 @@ class AtivoService:
         self._repositorio.excluir(ativo_id)
         del self._ativos_por_id[ativo_id]
         logger.info(
-            "Ativo excluído: id=%s nome=%r (vulnerabilidades associadas removidas em cascata)",
+            "Ativo excluído: id=%s nome=%r "
+            "(vulnerabilidades associadas removidas em cascata)",
             ativo_a_ser_excluido.id,
             ativo_a_ser_excluido.nome,
         )
@@ -131,7 +145,8 @@ class AtivoService:
         for nome_do_campo, valor in campos.items():
             if valor is None or not str(valor).strip():
                 logger.warning(
-                    "Validação de ativo falhou: campo obrigatório '%s' não foi informado.",
+                    "Validação de ativo falhou: "
+                    "campo obrigatório '%s' não foi informado.",
                     nome_do_campo,
                 )
                 raise ErroDeValidacao(f"O campo '{nome_do_campo}' é obrigatório.")
@@ -139,5 +154,7 @@ class AtivoService:
     @staticmethod
     def _validar_tipo_de_ativo(tipo: TipoAtivo) -> None:
         if not isinstance(tipo, TipoAtivo):
-            logger.warning("Validação de ativo falhou: tipo de ativo inválido (%r).", tipo)
+            logger.warning(
+                "Validação de ativo falhou: tipo de ativo inválido (%r).", tipo
+            )
             raise ErroDeValidacao("Selecione um tipo de ativo válido.")

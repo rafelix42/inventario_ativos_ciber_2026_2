@@ -32,9 +32,9 @@ def escolher_modo_de_execucao() -> str:
     while True:
         try:
             escolha = input("Como deseja executar a aplicação?: ").strip()
-        except (EOFError, KeyboardInterrupt):
+        except (EOFError, KeyboardInterrupt) as interrupcao:
             print("\nEntrada interrompida. Encerrando a aplicação.")
-            raise SystemExit(0)
+            raise SystemExit(0) from interrupcao
 
         if escolha == "1":
             return "terminal"
@@ -47,6 +47,7 @@ def escolher_modo_de_execucao() -> str:
 
 
 def iniciar_aplicacao() -> None:
+    """Configura o logging, monta as dependências e inicia a interface escolhida."""
     configurar_logging()
     logger.info("Aplicação iniciada.")
 
@@ -55,17 +56,23 @@ def iniciar_aplicacao() -> None:
 
     banco_de_dados = ConexaoBancoDeDados()
     servico_de_ativos = AtivoService(AtivoRepository(banco_de_dados))
-    servico_de_vulnerabilidades = VulnerabilidadeService(VulnerabilidadeRepository(banco_de_dados))
+    servico_de_vulnerabilidades = VulnerabilidadeService(
+        VulnerabilidadeRepository(banco_de_dados)
+    )
 
     if modo_de_execucao == "grafica":
         # Importado somente aqui para que o modo terminal funcione mesmo em
         # ambientes sem tkinter instalado (por exemplo, um servidor sem
         # interface gráfica).
+        # pylint: disable-next=import-outside-toplevel
         from app.ui.main_window import JanelaPrincipal
 
-        janela_principal = JanelaPrincipal(servico_de_ativos, servico_de_vulnerabilidades)
+        janela_principal = JanelaPrincipal(
+            servico_de_ativos, servico_de_vulnerabilidades
+        )
         janela_principal.mainloop()
     else:
+        # pylint: disable-next=import-outside-toplevel
         from app.cli.interface_texto import InterfaceDeTexto
 
         InterfaceDeTexto(servico_de_ativos, servico_de_vulnerabilidades).executar()

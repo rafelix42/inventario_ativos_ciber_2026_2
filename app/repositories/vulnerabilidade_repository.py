@@ -18,7 +18,8 @@ class VulnerabilidadeRepository:
         """Insere uma nova vulnerabilidade e preenche o 'id' gerado pelo banco."""
         cursor = self._conexao.execute(
             """
-            INSERT INTO vulnerabilidades (ativo_id, descricao, categoria, nota_cvss, status)
+            INSERT INTO vulnerabilidades
+                (ativo_id, descricao, categoria, nota_cvss, status)
             VALUES (?, ?, ?, ?, ?)
             """,
             (
@@ -52,23 +53,31 @@ class VulnerabilidadeRepository:
         self._conexao.commit()
 
     def excluir(self, vulnerabilidade_id: int) -> None:
-        self._conexao.execute("DELETE FROM vulnerabilidades WHERE id = ?", (vulnerabilidade_id,))
+        """Remove a vulnerabilidade com o ID informado."""
+        self._conexao.execute(
+            "DELETE FROM vulnerabilidades WHERE id = ?", (vulnerabilidade_id,)
+        )
         self._conexao.commit()
 
     def buscar_por_id(self, vulnerabilidade_id: int) -> Optional[Vulnerabilidade]:
+        """Retorna a vulnerabilidade com o ID informado, ou None se não existir."""
         linha = self._conexao.execute(
             "SELECT * FROM vulnerabilidades WHERE id = ?", (vulnerabilidade_id,)
         ).fetchone()
         return self._converter_linha_em_vulnerabilidade(linha) if linha else None
 
     def listar_por_ativo(self, ativo_id: int) -> List[Vulnerabilidade]:
+        """Retorna as vulnerabilidades de um ativo, ordenadas por ID."""
         linhas = self._conexao.execute(
             "SELECT * FROM vulnerabilidades WHERE ativo_id = ? ORDER BY id", (ativo_id,)
         ).fetchall()
         return [self._converter_linha_em_vulnerabilidade(linha) for linha in linhas]
 
     def listar_todas(self) -> List[Vulnerabilidade]:
-        linhas = self._conexao.execute("SELECT * FROM vulnerabilidades ORDER BY id").fetchall()
+        """Retorna todas as vulnerabilidades, ordenadas por ID."""
+        linhas = self._conexao.execute(
+            "SELECT * FROM vulnerabilidades ORDER BY id"
+        ).fetchall()
         return [self._converter_linha_em_vulnerabilidade(linha) for linha in linhas]
 
     @staticmethod

@@ -21,7 +21,13 @@ class AtivoRepository:
             INSERT INTO ativos (nome, responsavel, setor, tipo, descricao)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (ativo.nome, ativo.responsavel, ativo.setor, ativo.tipo.name, ativo.descricao),
+            (
+                ativo.nome,
+                ativo.responsavel,
+                ativo.setor,
+                ativo.tipo.name,
+                ativo.descricao,
+            ),
         )
         self._conexao.commit()
         ativo.id = cursor.lastrowid
@@ -35,7 +41,14 @@ class AtivoRepository:
             SET nome = ?, responsavel = ?, setor = ?, tipo = ?, descricao = ?
             WHERE id = ?
             """,
-            (ativo.nome, ativo.responsavel, ativo.setor, ativo.tipo.name, ativo.descricao, ativo.id),
+            (
+                ativo.nome,
+                ativo.responsavel,
+                ativo.setor,
+                ativo.tipo.name,
+                ativo.descricao,
+                ativo.id,
+            ),
         )
         self._conexao.commit()
 
@@ -46,12 +59,14 @@ class AtivoRepository:
         self._conexao.commit()
 
     def buscar_por_id(self, ativo_id: int) -> Optional[Ativo]:
+        """Retorna o ativo com o ID informado, ou None se não existir."""
         linha = self._conexao.execute(
             "SELECT * FROM ativos WHERE id = ?", (ativo_id,)
         ).fetchone()
         return self._converter_linha_em_ativo(linha) if linha else None
 
     def listar_todos(self) -> List[Ativo]:
+        """Retorna todos os ativos, ordenados por ID."""
         linhas = self._conexao.execute("SELECT * FROM ativos ORDER BY id").fetchall()
         return [self._converter_linha_em_ativo(linha) for linha in linhas]
 

@@ -10,6 +10,8 @@ NOME_DO_LOGGER = "app.services.ativo_service"
 
 
 class TestAtivoService(CasoDeTesteComBancoTemporario):
+    """Testes das regras de negócio de ativos."""
+
     def setUp(self) -> None:
         super().setUp()
         self.servico = AtivoService(AtivoRepository(self.banco))
@@ -31,15 +33,24 @@ class TestAtivoService(CasoDeTesteComBancoTemporario):
 
     def test_cadastrar_com_nome_vazio_levanta_erro_de_validacao(self):
         with self.assertRaises(ErroDeValidacao):
-            self.servico.cadastrar(nome="   ", responsavel="Fulano", setor="TI", tipo=TipoAtivo.SERVIDOR)
+            self.servico.cadastrar(
+                nome="   ", responsavel="Fulano", setor="TI", tipo=TipoAtivo.SERVIDOR
+            )
 
     def test_cadastrar_com_responsavel_vazio_levanta_erro_de_validacao(self):
         with self.assertRaises(ErroDeValidacao):
-            self.servico.cadastrar(nome="Servidor-01", responsavel="", setor="TI", tipo=TipoAtivo.SERVIDOR)
+            self.servico.cadastrar(
+                nome="Servidor-01", responsavel="", setor="TI", tipo=TipoAtivo.SERVIDOR
+            )
 
     def test_cadastrar_com_setor_vazio_levanta_erro_de_validacao(self):
         with self.assertRaises(ErroDeValidacao):
-            self.servico.cadastrar(nome="Servidor-01", responsavel="Fulano", setor="", tipo=TipoAtivo.SERVIDOR)
+            self.servico.cadastrar(
+                nome="Servidor-01",
+                responsavel="Fulano",
+                setor="",
+                tipo=TipoAtivo.SERVIDOR,
+            )
 
     def test_cadastrar_com_tipo_invalido_levanta_erro_de_validacao(self):
         with self.assertRaises(ErroDeValidacao):
@@ -73,17 +84,26 @@ class TestAtivoService(CasoDeTesteComBancoTemporario):
         self.assertEqual(len(self.servico.buscar_por_nome("")), 2)
 
     def test_listar_todos_retorna_ativos_ordenados_por_id(self):
-        primeiro_ativo = self.servico.cadastrar("Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR)
-        segundo_ativo = self.servico.cadastrar("Servidor-02", "Fulano", "TI", TipoAtivo.SERVIDOR)
+        primeiro_ativo = self.servico.cadastrar(
+            "Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR
+        )
+        segundo_ativo = self.servico.cadastrar(
+            "Servidor-02", "Fulano", "TI", TipoAtivo.SERVIDOR
+        )
 
         ativos_cadastrados = self.servico.listar_todos()
 
-        self.assertEqual([ativo.id for ativo in ativos_cadastrados], [primeiro_ativo.id, segundo_ativo.id])
+        self.assertEqual(
+            [ativo.id for ativo in ativos_cadastrados],
+            [primeiro_ativo.id, segundo_ativo.id],
+        )
 
     # --- Update ---------------------------------------------------------
 
     def test_atualizar_altera_os_campos_permitidos(self):
-        ativo = self.servico.cadastrar("Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR)
+        ativo = self.servico.cadastrar(
+            "Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR
+        )
 
         with self.assertLogs(NOME_DO_LOGGER, level="INFO"):
             ativo_atualizado = self.servico.atualizar(
@@ -104,7 +124,9 @@ class TestAtivoService(CasoDeTesteComBancoTemporario):
             self.servico.atualizar(999, "Fulano", "TI", TipoAtivo.SERVIDOR)
 
     def test_atualizar_com_responsavel_vazio_levanta_erro_de_validacao(self):
-        ativo = self.servico.cadastrar("Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR)
+        ativo = self.servico.cadastrar(
+            "Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR
+        )
 
         with self.assertRaises(ErroDeValidacao):
             self.servico.atualizar(ativo.id, "", "TI", TipoAtivo.SERVIDOR)
@@ -112,7 +134,9 @@ class TestAtivoService(CasoDeTesteComBancoTemporario):
     # --- Delete ---------------------------------------------------------
 
     def test_excluir_remove_ativo_do_cache_e_do_banco(self):
-        ativo = self.servico.cadastrar("Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR)
+        ativo = self.servico.cadastrar(
+            "Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR
+        )
 
         with self.assertLogs(NOME_DO_LOGGER, level="INFO"):
             self.servico.excluir(ativo.id)
@@ -129,6 +153,10 @@ class TestAtivoService(CasoDeTesteComBancoTemporario):
     def test_nova_instancia_do_servico_recarrega_cache_a_partir_do_banco(self):
         self.servico.cadastrar("Servidor-01", "Fulano", "TI", TipoAtivo.SERVIDOR)
 
-        outro_servico_apontando_para_o_mesmo_banco = AtivoService(AtivoRepository(self.banco))
+        outro_servico_apontando_para_o_mesmo_banco = AtivoService(
+            AtivoRepository(self.banco)
+        )
 
-        self.assertEqual(len(outro_servico_apontando_para_o_mesmo_banco.listar_todos()), 1)
+        self.assertEqual(
+            len(outro_servico_apontando_para_o_mesmo_banco.listar_todos()), 1
+        )

@@ -7,3 +7,21 @@ py-version = "3.9"
 
 [tool.pylint.format]
 max-line-length = 88
+
+[tool.pylint.basic]
+# Métodos de teste têm nomes descritivos e dispensam docstring.
+no-docstring-rgx = "^(_|test_|setUp$|tearDown$)"
+
+[tool.pylint.classes]
+# '_construir_campos' é chamado pela classe base FormularioModal durante a
+# construção da janela, então os atributos criados nele valem como do __init__.
+defining-attr-methods = [
+    "__init__", "__new__", "setUp", "asyncSetUp", "__post_init__",
+    "_construir_campos",
+]
+
+[tool.pylint.design]
+# Formulários Tkinter guardam cada campo como atributo da janela.
+max-attributes = 12
+# Classes como InterfaceDeTexto expõem um único ponto de entrada público.
+min-public-methods = 1
