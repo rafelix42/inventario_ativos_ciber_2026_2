@@ -1,35 +1,34 @@
-"""Interface de texto: expõe todo o CRUD de ativos e vulnerabilidades por
-um menu no terminal, para quando não há (ou não se quer usar) a interface
-gráfica (RNF08).
+"""Interface de texto: expõe todo o CRUD de equipamentos e vulnerabilidades por
+um menu no terminal (RNF08).
 
 Esta classe não conhece SQL nem regras de negócio: ela só lê dados do
-teclado, chama os mesmos serviços usados pela interface gráfica
-(AtivoService e VulnerabilidadeService) e imprime o resultado.
+teclado, chama os serviços da aplicação (EquipamentoService e
+VulnerabilidadeService) e imprime o resultado.
 """
 
-from typing import Optional
+from typing import Optional, Type
 
 from app.exceptions import (
-    AtivoNaoEncontradoError,
+    EquipamentoNaoEncontradoError,
     ErroDeValidacao,
     VulnerabilidadeNaoEncontradaError,
 )
-from app.models.ativo import Ativo
-from app.models.enums import StatusVulnerabilidade, TipoAtivo, rotulo_amigavel
+from app.models.enums import StatusVulnerabilidade, rotulo_amigavel
+from app.models.equipamento import TIPOS_DE_EQUIPAMENTO, Equipamento
 from app.models.vulnerabilidade import Vulnerabilidade
-from app.services.ativo_service import AtivoService
+from app.services.equipamento_service import EquipamentoService
 from app.services.vulnerabilidade_service import VulnerabilidadeService
 
 
 class InterfaceDeTexto:
-    """Menu textual com todas as operações de CRUD de ativos e vulnerabilidades."""
+    """Menu textual com o CRUD completo de equipamentos e vulnerabilidades."""
 
     def __init__(
         self,
-        servico_de_ativos: AtivoService,
+        servico_de_equipamentos: EquipamentoService,
         servico_de_vulnerabilidades: VulnerabilidadeService,
     ):
-        self._servico_de_ativos = servico_de_ativos
+        self._servico_de_equipamentos = servico_de_equipamentos
         self._servico_de_vulnerabilidades = servico_de_vulnerabilidades
 
     def executar(self) -> None:
@@ -40,15 +39,15 @@ class InterfaceDeTexto:
                 opcao = input("Escolha uma opção: ").strip()
 
                 if opcao == "1":
-                    self._cadastrar_ativo()
+                    self._cadastrar_equipamento()
                 elif opcao == "2":
-                    self._buscar_ativo()
+                    self._buscar_equipamento()
                 elif opcao == "3":
-                    self._listar_ativos()
+                    self._listar_equipamentos()
                 elif opcao == "4":
-                    self._atualizar_ativo()
+                    self._atualizar_equipamento()
                 elif opcao == "5":
-                    self._excluir_ativo()
+                    self._excluir_equipamento()
                 elif opcao == "6":
                     self._gerenciar_vulnerabilidades()
                 elif opcao == "0":
@@ -63,134 +62,152 @@ class InterfaceDeTexto:
     @staticmethod
     def _exibir_menu_principal() -> None:
         print("\n=== INVENTÁRIO DE ATIVOS DE TI ===")
-        print("1 - Cadastrar ativo")
-        print("2 - Buscar ativo (por ID ou nome)")
-        print("3 - Listar todos os ativos")
-        print("4 - Atualizar ativo")
-        print("5 - Excluir ativo")
-        print("6 - Gerenciar vulnerabilidades de um ativo")
+        print("1 - Cadastrar equipamento")
+        print("2 - Buscar equipamento (por ID ou nome)")
+        print("3 - Listar todos os equipamentos")
+        print("4 - Atualizar equipamento")
+        print("5 - Excluir equipamento")
+        print("6 - Gerenciar vulnerabilidades de um equipamento")
         print("0 - Sair")
 
-    # --- Ativos: Create -----------------------------------------------
+    # --- Equipamentos: Create -----------------------------------------------
 
-    def _cadastrar_ativo(self) -> None:
-        print("\n--- Novo ativo ---")
+    def _cadastrar_equipamento(self) -> None:
+        print("\n--- Novo equipamento ---")
         nome = input("Nome/hostname: ")
         responsavel = input("Responsável: ")
         setor = input("Setor/localização: ")
-        tipo = self._escolher_tipo_de_ativo()
-        if tipo is None:
+        classe = self._escolher_classe_de_equipamento()
+        if classe is None:
             return
         descricao = input("Descrição (opcional): ")
 
         try:
-            ativo = self._servico_de_ativos.cadastrar(
-                nome, responsavel, setor, tipo, descricao
+            equipamento = self._servico_de_equipamentos.cadastrar(
+                nome, responsavel, setor, classe, descricao
             )
         except ErroDeValidacao as erro:
             print(f"Erro: {erro}")
             return
 
-        print(f"Ativo '{ativo.nome}' cadastrado com sucesso (ID {ativo.id}).")
+        print(
+            f"Equipamento '{equipamento.nome}' cadastrado com sucesso "
+            f"(ID {equipamento.id})."
+        )
 
         deseja_cadastrar_vulnerabilidades = (
             input(
-                "Deseja cadastrar vulnerabilidades iniciais para este ativo agora? "
-                "(s/n): "
+                "Deseja cadastrar vulnerabilidades iniciais para este "
+                "equipamento agora? (s/n): "
             )
             .strip()
             .lower()
         )
         if deseja_cadastrar_vulnerabilidades == "s":
-            self._menu_de_vulnerabilidades(ativo)
+            self._menu_de_vulnerabilidades(equipamento)
 
-    # --- Ativos: Read ---------------------------------------------------
+    # --- Equipamentos: Read ---------------------------------------------------
 
-    def _buscar_ativo(self) -> None:
-        print("\n--- Buscar ativo ---")
+    def _buscar_equipamento(self) -> None:
+        print("\n--- Buscar equipamento ---")
         texto_buscado = input("Digite o ID ou parte do nome/hostname: ").strip()
 
         if texto_buscado.isdigit():
             try:
-                ativo = self._servico_de_ativos.buscar_por_id(int(texto_buscado))
-                self._exibir_ativo(ativo)
-            except AtivoNaoEncontradoError as erro:
+                equipamento = self._servico_de_equipamentos.buscar_por_id(
+                    int(texto_buscado)
+                )
+                self._exibir_equipamento(equipamento)
+            except EquipamentoNaoEncontradoError as erro:
                 print(f"Erro: {erro}")
             return
 
-        ativos_encontrados = self._servico_de_ativos.buscar_por_nome(texto_buscado)
-        if not ativos_encontrados:
-            print("Nenhum ativo encontrado.")
+        equipamentos_encontrados = self._servico_de_equipamentos.buscar_por_nome(
+            texto_buscado
+        )
+        if not equipamentos_encontrados:
+            print("Nenhum equipamento encontrado.")
             return
-        for ativo in ativos_encontrados:
-            self._exibir_ativo(ativo)
+        for equipamento in equipamentos_encontrados:
+            self._exibir_equipamento(equipamento)
 
-    def _listar_ativos(self) -> None:
-        print("\n--- Ativos cadastrados ---")
-        ativos = self._servico_de_ativos.listar_todos()
-        if not ativos:
-            print("Nenhum ativo cadastrado.")
+    def _listar_equipamentos(self) -> None:
+        print("\n--- Equipamentos cadastrados ---")
+        equipamentos = self._servico_de_equipamentos.listar_todos()
+        if not equipamentos:
+            print("Nenhum equipamento cadastrado.")
             return
-        for ativo in ativos:
-            self._exibir_ativo(ativo)
+        for equipamento in equipamentos:
+            self._exibir_equipamento(equipamento)
 
-    def _exibir_ativo(self, ativo: Ativo) -> None:
+    def _exibir_equipamento(self, equipamento: Equipamento) -> None:
         quantidade_de_vulnerabilidades = len(
-            self._servico_de_vulnerabilidades.listar_por_ativo(ativo.id)
+            self._servico_de_vulnerabilidades.listar_por_equipamento(equipamento.id)
         )
         print(
-            f"[{ativo.id}] {ativo.nome} | Responsável: {ativo.responsavel} | "
-            f"Setor: {ativo.setor} | Tipo: {rotulo_amigavel(ativo.tipo.name)} | "
+            f"[{equipamento.id}] {equipamento.nome} | "
+            f"Responsável: {equipamento.responsavel} | "
+            f"Setor: {equipamento.setor} | Tipo: {equipamento.ROTULO} | "
             f"Vulnerabilidades: {quantidade_de_vulnerabilidades}"
         )
-        if ativo.descricao:
-            print(f"    Descrição: {ativo.descricao}")
+        if equipamento.descricao:
+            print(f"    Descrição: {equipamento.descricao}")
 
-    # --- Ativos: Update ---------------------------------------------------
+    # --- Equipamentos: Update ---------------------------------------------------
 
-    def _atualizar_ativo(self) -> None:
-        print("\n--- Atualizar ativo ---")
-        ativo = self._selecionar_ativo_por_id()
-        if ativo is None:
+    def _atualizar_equipamento(self) -> None:
+        print("\n--- Atualizar equipamento ---")
+        equipamento = self._selecionar_equipamento_por_id()
+        if equipamento is None:
             return
 
         print("Deixe em branco para manter o valor atual.")
         responsavel = (
-            input(f"Responsável [{ativo.responsavel}]: ").strip() or ativo.responsavel
+            input(f"Responsável [{equipamento.responsavel}]: ").strip()
+            or equipamento.responsavel
         )
-        setor = input(f"Setor/localização [{ativo.setor}]: ").strip() or ativo.setor
-        descricao = input(f"Descrição [{ativo.descricao}]: ").strip() or ativo.descricao
+        setor = (
+            input(f"Setor/localização [{equipamento.setor}]: ").strip()
+            or equipamento.setor
+        )
+        descricao = (
+            input(f"Descrição [{equipamento.descricao}]: ").strip()
+            or equipamento.descricao
+        )
 
-        tipo = ativo.tipo
-        print(f"Tipo atual: {rotulo_amigavel(ativo.tipo.name)}")
-        if input("Deseja alterar o tipo de ativo? (s/n): ").strip().lower() == "s":
-            tipo_escolhido = self._escolher_tipo_de_ativo()
-            if tipo_escolhido is None:
+        classe = type(equipamento)
+        print(f"Tipo atual: {equipamento.ROTULO}")
+        if (
+            input("Deseja alterar o tipo de equipamento? (s/n): ").strip().lower()
+            == "s"
+        ):
+            classe_escolhida = self._escolher_classe_de_equipamento()
+            if classe_escolhida is None:
                 return
-            tipo = tipo_escolhido
+            classe = classe_escolhida
 
         try:
-            ativo_atualizado = self._servico_de_ativos.atualizar(
-                ativo.id, responsavel, setor, tipo, descricao
+            equipamento_atualizado = self._servico_de_equipamentos.atualizar(
+                equipamento.id, responsavel, setor, classe, descricao
             )
         except ErroDeValidacao as erro:
             print(f"Erro: {erro}")
             return
 
-        print("Ativo atualizado com sucesso.")
-        self._exibir_ativo(ativo_atualizado)
+        print("Equipamento atualizado com sucesso.")
+        self._exibir_equipamento(equipamento_atualizado)
 
-    # --- Ativos: Delete ---------------------------------------------------
+    # --- Equipamentos: Delete ---------------------------------------------------
 
-    def _excluir_ativo(self) -> None:
-        print("\n--- Excluir ativo ---")
-        ativo = self._selecionar_ativo_por_id()
-        if ativo is None:
+    def _excluir_equipamento(self) -> None:
+        print("\n--- Excluir equipamento ---")
+        equipamento = self._selecionar_equipamento_por_id()
+        if equipamento is None:
             return
 
         confirmacao = (
             input(
-                f"Tem certeza que deseja excluir o ativo '{ativo.nome}' "
+                f"Tem certeza que deseja excluir o equipamento '{equipamento.nome}' "
                 "e todas as suas "
                 "vulnerabilidades? (s/n): "
             )
@@ -201,22 +218,27 @@ class InterfaceDeTexto:
             print("Operação cancelada.")
             return
 
-        self._servico_de_ativos.excluir(ativo.id)
-        self._servico_de_vulnerabilidades.esquecer_vulnerabilidades_do_ativo(ativo.id)
-        print("Ativo excluído com sucesso.")
+        self._servico_de_equipamentos.excluir(equipamento.id)
+        self._servico_de_vulnerabilidades.esquecer_vulnerabilidades_do_equipamento(
+            equipamento.id
+        )
+        print("Equipamento excluído com sucesso.")
 
     # --- Vulnerabilidades ------------------------------------------------
 
     def _gerenciar_vulnerabilidades(self) -> None:
-        print("\n--- Gerenciar vulnerabilidades de um ativo ---")
-        ativo = self._selecionar_ativo_por_id()
-        if ativo is None:
+        print("\n--- Gerenciar vulnerabilidades de um equipamento ---")
+        equipamento = self._selecionar_equipamento_por_id()
+        if equipamento is None:
             return
-        self._menu_de_vulnerabilidades(ativo)
+        self._menu_de_vulnerabilidades(equipamento)
 
-    def _menu_de_vulnerabilidades(self, ativo: Ativo) -> None:
+    def _menu_de_vulnerabilidades(self, equipamento: Equipamento) -> None:
         while True:
-            print(f"\n=== VULNERABILIDADES DE: {ativo.nome} (ID {ativo.id}) ===")
+            print(
+                f"\n=== VULNERABILIDADES DE: {equipamento.nome} "
+                f"(ID {equipamento.id}) ==="
+            )
             print("1 - Listar vulnerabilidades")
             print("2 - Cadastrar vulnerabilidade")
             print("3 - Atualizar vulnerabilidade")
@@ -225,22 +247,24 @@ class InterfaceDeTexto:
             opcao = input("Escolha uma opção: ").strip()
 
             if opcao == "1":
-                self._listar_vulnerabilidades(ativo)
+                self._listar_vulnerabilidades(equipamento)
             elif opcao == "2":
-                self._cadastrar_vulnerabilidade(ativo)
+                self._cadastrar_vulnerabilidade(equipamento)
             elif opcao == "3":
-                self._atualizar_vulnerabilidade(ativo)
+                self._atualizar_vulnerabilidade(equipamento)
             elif opcao == "4":
-                self._excluir_vulnerabilidade(ativo)
+                self._excluir_vulnerabilidade(equipamento)
             elif opcao == "0":
                 return
             else:
                 print("Opção inválida. Tente novamente.\n")
 
-    def _listar_vulnerabilidades(self, ativo: Ativo) -> None:
-        vulnerabilidades = self._servico_de_vulnerabilidades.listar_por_ativo(ativo.id)
+    def _listar_vulnerabilidades(self, equipamento: Equipamento) -> None:
+        vulnerabilidades = self._servico_de_vulnerabilidades.listar_por_equipamento(
+            equipamento.id
+        )
         if not vulnerabilidades:
-            print("Este ativo não possui nenhuma vulnerabilidade registrada.")
+            print("Este equipamento não possui nenhuma vulnerabilidade registrada.")
             return
         for vulnerabilidade in vulnerabilidades:
             print(
@@ -251,7 +275,7 @@ class InterfaceDeTexto:
                 f"Status: {rotulo_amigavel(vulnerabilidade.status.name)}"
             )
 
-    def _cadastrar_vulnerabilidade(self, ativo: Ativo) -> None:
+    def _cadastrar_vulnerabilidade(self, equipamento: Equipamento) -> None:
         print("\n--- Nova vulnerabilidade ---")
         descricao = input("Descrição: ")
         categoria = input("Categoria: ")
@@ -264,7 +288,7 @@ class InterfaceDeTexto:
 
         try:
             vulnerabilidade = self._servico_de_vulnerabilidades.cadastrar(
-                ativo.id, descricao, categoria, nota_cvss, status
+                equipamento.id, descricao, categoria, nota_cvss, status
             )
         except ErroDeValidacao as erro:
             print(f"Erro: {erro}")
@@ -275,8 +299,8 @@ class InterfaceDeTexto:
             f"severidade {rotulo_amigavel(vulnerabilidade.severidade.name)})."
         )
 
-    def _atualizar_vulnerabilidade(self, ativo: Ativo) -> None:
-        vulnerabilidade = self._selecionar_vulnerabilidade_por_id(ativo)
+    def _atualizar_vulnerabilidade(self, equipamento: Equipamento) -> None:
+        vulnerabilidade = self._selecionar_vulnerabilidade_por_id(equipamento)
         if vulnerabilidade is None:
             return
 
@@ -319,8 +343,8 @@ class InterfaceDeTexto:
             f"{rotulo_amigavel(vulnerabilidade_atualizada.severidade.name)}."
         )
 
-    def _excluir_vulnerabilidade(self, ativo: Ativo) -> None:
-        vulnerabilidade = self._selecionar_vulnerabilidade_por_id(ativo)
+    def _excluir_vulnerabilidade(self, equipamento: Equipamento) -> None:
+        vulnerabilidade = self._selecionar_vulnerabilidade_por_id(equipamento)
         if vulnerabilidade is None:
             return
 
@@ -343,27 +367,29 @@ class InterfaceDeTexto:
 
     # --- Utilitários de entrada -----------------------------------------
 
-    def _selecionar_ativo_por_id(self) -> Optional[Ativo]:
-        texto_id = input("Digite o ID do ativo: ").strip()
+    def _selecionar_equipamento_por_id(self) -> Optional[Equipamento]:
+        texto_id = input("Digite o ID do equipamento: ").strip()
         if not texto_id.isdigit():
             print("Erro: informe um número de ID válido.")
             return None
 
         try:
-            return self._servico_de_ativos.buscar_por_id(int(texto_id))
-        except AtivoNaoEncontradoError as erro:
+            return self._servico_de_equipamentos.buscar_por_id(int(texto_id))
+        except EquipamentoNaoEncontradoError as erro:
             print(f"Erro: {erro}")
             return None
 
     def _selecionar_vulnerabilidade_por_id(
-        self, ativo: Ativo
+        self, equipamento: Equipamento
     ) -> Optional[Vulnerabilidade]:
-        vulnerabilidades = self._servico_de_vulnerabilidades.listar_por_ativo(ativo.id)
+        vulnerabilidades = self._servico_de_vulnerabilidades.listar_por_equipamento(
+            equipamento.id
+        )
         if not vulnerabilidades:
-            print("Este ativo não possui nenhuma vulnerabilidade registrada.")
+            print("Este equipamento não possui nenhuma vulnerabilidade registrada.")
             return None
 
-        self._listar_vulnerabilidades(ativo)
+        self._listar_vulnerabilidades(equipamento)
         texto_id = input("Digite o ID da vulnerabilidade: ").strip()
         if not texto_id.isdigit():
             print("Erro: informe um número de ID válido.")
@@ -376,22 +402,22 @@ class InterfaceDeTexto:
         if vulnerabilidade is None:
             print(
                 f"Erro: nenhuma vulnerabilidade com ID {vulnerabilidade_id} "
-                "para este ativo."
+                "para este equipamento."
             )
         return vulnerabilidade
 
     @staticmethod
-    def _escolher_tipo_de_ativo() -> Optional[TipoAtivo]:
-        tipos_disponiveis = list(TipoAtivo)
-        print("Tipos de ativo disponíveis:")
-        for indice, tipo in enumerate(tipos_disponiveis, start=1):
-            print(f"  {indice} - {rotulo_amigavel(tipo.name)}")
+    def _escolher_classe_de_equipamento() -> Optional[Type[Equipamento]]:
+        classes_disponiveis = list(TIPOS_DE_EQUIPAMENTO.values())
+        print("Tipos de equipamento disponíveis:")
+        for indice, classe in enumerate(classes_disponiveis, start=1):
+            print(f"  {indice} - {classe.ROTULO}")
 
         escolha = input("Escolha o tipo (número): ").strip()
-        if not escolha.isdigit() or not 1 <= int(escolha) <= len(tipos_disponiveis):
+        if not escolha.isdigit() or not 1 <= int(escolha) <= len(classes_disponiveis):
             print("Erro: opção de tipo inválida.")
             return None
-        return tipos_disponiveis[int(escolha) - 1]
+        return classes_disponiveis[int(escolha) - 1]
 
     @staticmethod
     def _escolher_status() -> Optional[StatusVulnerabilidade]:

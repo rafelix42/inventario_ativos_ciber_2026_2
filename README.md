@@ -4,48 +4,24 @@ Repositório para armazenar os códigos do projeto das sprints 1 e 2 do curso de
 
 Aluno: Raphael Felix
 
-Aplicação de cadastro (CRUD) de ativos de TI e de suas vulnerabilidades,
-com persistência em banco de dados **SQLite**. Pode ser usada tanto por
-uma interface gráfica em **Tkinter** quanto por um menu no **terminal**.
+Aplicação de cadastro (CRUD) de equipamentos de TI e de suas vulnerabilidades,
+com persistência em banco de dados **SQLite**, operada por um menu no
+**terminal**.
 
 ## Como executar
 
 Não há nenhuma dependência para instalar com `pip` — o projeto usa só
-bibliotecas padrão do Python (veja `requirements.txt`). O único ponto de
-atenção é o **tkinter**: em distribuições Linux baseadas em Debian/Ubuntu
-ele é empacotado separadamente e só é necessário se você for usar a
-interface gráfica.
+bibliotecas padrão do Python (veja `requirements.txt`).
 
 ```bash
-# (opcional) só necessário para a interface gráfica em distribuições Linux
-# baseadas em Debian/Ubuntu — o sqlite3, ao contrário do tkinter, já vem
-# embutido no Python e não precisa de nenhuma instalação separada:
-sudo apt install python3-tk
-
 python3 main.py
 ```
 
-Assim que o programa inicia, ele pergunta qual interface usar:
-
-```
-=== Inventário de Ativos de TI ===
-1 - Terminal
-2 - Interface gráfica
-0 - Sair
-Como deseja executar a aplicação?:
-```
-
-- **Terminal**: abre um menu textual com absolutamente todas as operações
-  de CRUD de ativos e vulnerabilidades — útil em ambientes sem interface
-  gráfica disponível (RNF08). O Tkinter só é importado se a opção gráfica
-  for escolhida, então o modo terminal funciona mesmo sem `python3-tk`
-  instalado.
-- **Interface gráfica**: abre a janela Tkinter com o inventário de ativos.
-- **Sair**: encerra o programa imediatamente, sem abrir nenhuma interface.
+O programa abre um menu textual com todas as operações de CRUD de equipamentos
+e vulnerabilidades (RNF08).
 
 Na primeira execução, o arquivo de banco de dados `data/inventario.db` é
-criado automaticamente com as tabelas necessárias — independente da
-interface escolhida, os dados são os mesmos (um único banco compartilhado).
+criado automaticamente com as tabelas necessárias.
 
 ## Estrutura do projeto
 
@@ -55,26 +31,21 @@ requirements.txt
 seed_dados_teste.py           # Script utilitário para popular o banco com dados fictícios
 data/                         # Banco de dados SQLite (gerado em tempo de execução)
 logs/                         # Log de auditoria (gerado em tempo de execução)
-tests/                        # Testes automatizados (unittest) do CRUD de ativos e vulnerabilidades
+tests/                        # Testes automatizados (unittest) do CRUD de equipamentos e vulnerabilidades
 app/
 ├── exceptions.py             # Exceções personalizadas da aplicação
 ├── logging_config.py         # Configuração central do logging/auditoria
 ├── models/                   # Entidades e enumerações
-│   ├── enums.py               # TipoAtivo, Severidade, StatusVulnerabilidade
-│   ├── ativo.py               # Entidade Ativo
+│   ├── enums.py               # Severidade, StatusVulnerabilidade
+│   ├── equipamento.py         # Equipamento e suas subclasses (Servidor, Roteador, ...)
 │   └── vulnerabilidade.py     # Entidade Vulnerabilidade
 ├── repositories/             # Acesso direto ao SQLite (SQL puro)
 │   ├── database.py
-│   ├── ativo_repository.py
+│   ├── equipamento_repository.py
 │   └── vulnerabilidade_repository.py
 ├── services/                 # Regras de negócio, validações, cache em dicionário e logging
-│   ├── ativo_service.py
+│   ├── equipamento_service.py
 │   └── vulnerabilidade_service.py
-├── ui/                       # Janelas Tkinter (interface gráfica)
-│   ├── main_window.py
-│   ├── ativo_form.py
-│   ├── vulnerabilidade_window.py
-│   └── vulnerabilidade_form.py
 └── cli/                      # Menu no terminal (interface de texto)
     └── interface_texto.py
 ```
@@ -87,25 +58,40 @@ app/
   corresponde a uma operação SQL (inserir, atualizar, excluir, buscar).
 - **services**: aplicam as regras de negócio (campos obrigatórios, tipos
   válidos etc.) antes de chamar o repositório. Também mantêm em memória um
-  **cache em dicionário** dos ativos e vulnerabilidades já carregados, para
+  **cache em dicionário** dos equipamentos e vulnerabilidades já carregados, para
   otimizar buscas repetidas sem precisar acessar o banco a cada consulta.
-- **ui** e **cli**: duas interfaces diferentes (gráfica e terminal) para a
-  mesma aplicação. Nenhuma das duas tem comando SQL ou regra de negócio —
-  ambas apenas coletam dados do usuário, chamam os mesmos serviços
-  (`AtivoService`/`VulnerabilidadeService`) e exibem o resultado. Por isso
-  as duas interfaces têm sempre o mesmo comportamento e compartilham o
-  mesmo banco de dados.
+- **cli**: interface de texto (menu no terminal). Não tem comando SQL nem
+  regra de negócio — apenas coleta dados do usuário, chama os serviços
+  (`EquipamentoService`/`VulnerabilidadeService`) e exibe o resultado.
+
+## Tipos de equipamento (herança)
+
+Cada tipo de equipamento é uma subclasse de `Equipamento`
+(`app/models/equipamento.py`): `EstacaoDeTrabalho`, `Notebook`, `Servidor`,
+`BancoDeDados`, `SoftwareLicenciado`, `Impressora`, `Roteador`, `Switch` e
+`Firewall`. Não existe um campo `tipo`: o tipo de um equipamento é a
+própria classe do objeto, e cada subclasse define o seu `ROTULO` exibido no
+menu.
+
+No banco de dados, todas as subclasses ficam na mesma tabela
+`equipamentos`. A coluna `classe` guarda o nome da subclasse (ex.:
+`Servidor`), usado pelo repositório para recriar o objeto com a classe
+certa ao ler o registro. As vulnerabilidades referenciam o equipamento pela
+coluna `equipamento_id`.
 
 ## Funcionalidades
 
-- Cadastro, edição, exclusão e busca (por ID ou nome) de ativos de TI.
-- Ao excluir um ativo, as vulnerabilidades associadas são removidas em
+- Cadastro, edição, exclusão e busca (por ID ou nome) de equipamentos de TI.
+- Ao excluir um equipamento, as vulnerabilidades associadas são removidas em
   cascata (garantido pelo próprio banco de dados, com `ON DELETE CASCADE`).
-- Cadastro, edição e exclusão de vulnerabilidades vinculadas a um ativo.
-- Mensagem explícita quando um ativo não possui nenhuma vulnerabilidade
+- Cadastro, edição e exclusão de vulnerabilidades vinculadas a um equipamento.
+- Mensagem explícita quando um equipamento não possui nenhuma vulnerabilidade
   cadastrada.
+- Campos de texto (nome, responsável, setor, descrição e categoria) aceitam
+  apenas letras, inclusive acentuadas, e espaços: números e caracteres
+  especiais são recusados (`app/services/validacao.py`).
 - Tratamento de erros de validação (campos vazios, tipos inválidos) exibido
-  na própria interface em uso (gráfica ou terminal), sem travar a aplicação.
+  no próprio terminal, sem travar a aplicação.
 
 ## Severidade por nota CVSS
 
@@ -126,16 +112,13 @@ as faixas oficiais do CVSS v3.1:
 A classificação está centralizada em `Severidade.a_partir_da_nota_cvss()`
 (`app/models/enums.py`), usada tanto pela camada de serviço quanto pela
 propriedade `Vulnerabilidade.severidade` (`app/models/vulnerabilidade.py`) —
-por isso o texto exibido nunca fica dessincronizado da nota salva. Na
-**interface gráfica**, o formulário de cadastro/edição mostra a severidade
-calculada como prévia enquanto o usuário digita a nota, e a listagem de
-vulnerabilidades de um ativo exibe a nota e o texto da severidade lado a
-lado. No **terminal**, a severidade calculada aparece na confirmação após
+por isso o texto exibido nunca fica dessincronizado da nota salva. No
+terminal, a severidade calculada aparece na confirmação após
 cadastrar/atualizar uma vulnerabilidade e em cada linha da listagem.
 
 ## Logging / Auditoria
 
-Toda ação de cadastro, edição e exclusão de ativos e vulnerabilidades — além
+Toda ação de cadastro, edição e exclusão de equipamentos e vulnerabilidades — além
 de tentativas inválidas (campo obrigatório vazio, tipo/severidade/status
 inválido, busca por um ID inexistente) — é registrada em
 `logs/auditoria.log`, servindo como evidência verificável do que foi feito
@@ -144,9 +127,9 @@ no sistema e quando.
 Formato de cada linha: `data/hora [NÍVEL] módulo: mensagem`. Exemplo:
 
 ```
-2026-09-14 22:10:03,512 [INFO] app.services.ativo_service: Ativo cadastrado: id=1 nome='DB-Server-01' responsavel='Raphael' setor='TI' tipo=SERVIDOR
-2026-09-14 22:10:15,201 [WARNING] app.services.ativo_service: Validação de ativo falhou: campo obrigatório 'nome' não foi informado.
-2026-09-14 22:11:02,884 [INFO] app.services.ativo_service: Ativo excluído: id=1 nome='DB-Server-01' (vulnerabilidades associadas removidas em cascata)
+2026-09-14 22:10:03,512 [INFO] app.services.equipamento_service: Equipamento cadastrado: id=1 nome='DB-Server-01' responsavel='Raphael' setor='TI' classe=Servidor
+2026-09-14 22:10:15,201 [WARNING] app.services.equipamento_service: Validação de equipamento falhou: campo obrigatório 'nome' não foi informado.
+2026-09-14 22:11:02,884 [INFO] app.services.equipamento_service: Equipamento excluído: id=1 nome='DB-Server-01' (vulnerabilidades associadas removidas em cascata)
 ```
 
 A configuração fica centralizada em `app/logging_config.py`
@@ -157,7 +140,7 @@ no arquivo quanto no console.
 
 ## Testes automatizados
 
-O CRUD completo de ativos e vulnerabilidades é coberto por testes
+O CRUD completo de equipamentos e vulnerabilidades é coberto por testes
 automatizados com `unittest` (biblioteca padrão do Python, sem dependências
 extras). Para rodar toda a suíte a partir da raiz do projeto:
 
@@ -169,12 +152,12 @@ Estrutura dos testes:
 
 ```
 tests/
-├── base.py                          # Classe base: cria/destrói um SQLite temporário por teste
-├── test_ativo_repository.py         # CRUD de ativos direto na camada SQLite
+├── base.py                             # Classe base: cria/destrói um SQLite temporário por teste
+├── test_equipamento_repository.py      # CRUD de equipamentos direto na camada SQLite
 ├── test_vulnerabilidade_repository.py  # CRUD de vulnerabilidades + exclusão em cascata (RF07)
-├── test_ativo_service.py            # CRUD + validações (RNF02) + cache em dicionário (RF10/RNF05)
-├── test_vulnerabilidade_service.py  # CRUD + validação da nota CVSS (0.0–10.0) + RF09
-└── test_severidade_cvss.py          # Classificação da nota CVSS nas faixas de severidade
+├── test_equipamento_service.py         # CRUD + validações (RNF02) + cache em dicionário (RF10/RNF05)
+├── test_vulnerabilidade_service.py     # CRUD + validação da nota CVSS (0.0–10.0) + RF09
+└── test_severidade_cvss.py             # Classificação da nota CVSS nas faixas de severidade
 ```
 
 Cada teste usa um banco de dados SQLite próprio, criado em um diretório

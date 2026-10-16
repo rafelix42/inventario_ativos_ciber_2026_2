@@ -33,24 +33,25 @@ class ConexaoBancoDeDados:
 
     def _criar_tabelas_se_nao_existirem(self) -> None:
         self._conexao.execute("""
-            CREATE TABLE IF NOT EXISTS ativos (
+            CREATE TABLE IF NOT EXISTS equipamentos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome TEXT NOT NULL,
                 responsavel TEXT NOT NULL,
                 setor TEXT NOT NULL,
-                tipo TEXT NOT NULL,
+                classe TEXT NOT NULL,
                 descricao TEXT
             )
             """)
         self._conexao.execute("""
             CREATE TABLE IF NOT EXISTS vulnerabilidades (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ativo_id INTEGER NOT NULL,
+                equipamento_id INTEGER NOT NULL,
                 descricao TEXT NOT NULL,
                 categoria TEXT NOT NULL,
                 nota_cvss REAL NOT NULL,
                 status TEXT NOT NULL,
-                FOREIGN KEY (ativo_id) REFERENCES ativos (id) ON DELETE CASCADE
+                FOREIGN KEY (equipamento_id) REFERENCES equipamentos (id)
+                    ON DELETE CASCADE
             )
             """)
         self._conexao.commit()
