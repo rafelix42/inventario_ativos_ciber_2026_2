@@ -10,9 +10,17 @@ from app.models.enums import rotulo_amigavel
 from app.services.ativo_service import AtivoService
 from app.services.vulnerabilidade_service import VulnerabilidadeService
 from app.ui.ativo_form import JanelaFormularioAtivo
+from app.ui.componentes import criar_tabela
 from app.ui.vulnerabilidade_window import JanelaVulnerabilidades
 
-COLUNAS_DA_TABELA = ("id", "nome", "responsavel", "setor", "tipo", "vulnerabilidades")
+COLUNAS_DA_TABELA = (
+    ("id", "ID", 50),
+    ("nome", "Nome / Hostname", 180),
+    ("responsavel", "Responsável", 150),
+    ("setor", "Setor / Localização", 150),
+    ("tipo", "Tipo", 140),
+    ("vulnerabilidades", "Vulnerabilidades", 110),
+)
 
 
 class JanelaPrincipal(tk.Tk):
@@ -24,7 +32,9 @@ class JanelaPrincipal(tk.Tk):
     """
 
     def __init__(
-        self, servico_de_ativos: AtivoService, servico_de_vulnerabilidades: VulnerabilidadeService
+        self,
+        servico_de_ativos: AtivoService,
+        servico_de_vulnerabilidades: VulnerabilidadeService,
     ):
         super().__init__()
         self._servico_de_ativos = servico_de_ativos
@@ -43,41 +53,42 @@ class JanelaPrincipal(tk.Tk):
 
         quadro_de_busca = ttk.Frame(quadro)
         quadro_de_busca.pack(fill="x", pady=(0, 10))
-        ttk.Label(quadro_de_busca, text="Buscar por ID ou nome/hostname:").pack(side="left")
+        ttk.Label(quadro_de_busca, text="Buscar por ID ou nome/hostname:").pack(
+            side="left"
+        )
         self._campo_de_busca = ttk.Entry(quadro_de_busca, width=30)
         self._campo_de_busca.pack(side="left", padx=8)
         self._campo_de_busca.bind("<Return>", lambda evento: self._buscar_ativos())
-        ttk.Button(quadro_de_busca, text="Buscar", command=self._buscar_ativos).pack(side="left")
+        ttk.Button(quadro_de_busca, text="Buscar", command=self._buscar_ativos).pack(
+            side="left"
+        )
         ttk.Button(
             quadro_de_busca, text="Limpar busca", command=self._limpar_busca
         ).pack(side="left", padx=8)
 
-        self._tabela = ttk.Treeview(quadro, columns=COLUNAS_DA_TABELA, show="headings")
-        for coluna, titulo, largura in (
-            ("id", "ID", 50),
-            ("nome", "Nome / Hostname", 180),
-            ("responsavel", "Responsável", 150),
-            ("setor", "Setor / Localização", 150),
-            ("tipo", "Tipo", 140),
-            ("vulnerabilidades", "Vulnerabilidades", 110),
-        ):
-            self._tabela.heading(coluna, text=titulo)
-            self._tabela.column(coluna, width=largura, anchor="w")
-        self._tabela.pack(fill="both", expand=True)
+        self._tabela = criar_tabela(quadro, COLUNAS_DA_TABELA)
 
         quadro_de_botoes = ttk.Frame(quadro)
         quadro_de_botoes.pack(fill="x", pady=(10, 0))
-        ttk.Button(quadro_de_botoes, text="Novo Ativo", command=self._abrir_formulario_novo_ativo).pack(
-            side="left", padx=5
-        )
         ttk.Button(
-            quadro_de_botoes, text="Editar Ativo", command=self._abrir_formulario_editar_ativo
+            quadro_de_botoes,
+            text="Novo Ativo",
+            command=self._abrir_formulario_novo_ativo,
         ).pack(side="left", padx=5)
         ttk.Button(
-            quadro_de_botoes, text="Excluir Ativo", command=self._excluir_ativo_selecionado
+            quadro_de_botoes,
+            text="Editar Ativo",
+            command=self._abrir_formulario_editar_ativo,
         ).pack(side="left", padx=5)
         ttk.Button(
-            quadro_de_botoes, text="Vulnerabilidades", command=self._abrir_janela_de_vulnerabilidades
+            quadro_de_botoes,
+            text="Excluir Ativo",
+            command=self._excluir_ativo_selecionado,
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            quadro_de_botoes,
+            text="Vulnerabilidades",
+            command=self._abrir_janela_de_vulnerabilidades,
         ).pack(side="left", padx=5)
 
     def _atualizar_tabela_de_ativos(self, ativos: list[Ativo]) -> None:
@@ -118,7 +129,9 @@ class JanelaPrincipal(tk.Tk):
 
         if texto_buscado.isdigit():
             try:
-                ativo_encontrado = self._servico_de_ativos.buscar_por_id(int(texto_buscado))
+                ativo_encontrado = self._servico_de_ativos.buscar_por_id(
+                    int(texto_buscado)
+                )
                 self._atualizar_tabela_de_ativos([ativo_encontrado])
                 return
             except AtivoNaoEncontradoError:

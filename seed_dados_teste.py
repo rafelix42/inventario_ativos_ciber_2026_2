@@ -82,7 +82,9 @@ ATIVOS_FICTICIOS = [
         "responsavel": "Ana Paula Lima",
         "setor": "Sala de Telecom",
         "tipo": TipoAtivo.FIREWALL,
-        "descricao": "Firewall de perímetro responsável pelo filtro de tráfego externo.",
+        "descricao": (
+            "Firewall de perímetro responsável pelo filtro de tráfego externo."
+        ),
         "vulnerabilidades": [
             {
                 "descricao": "Regras de firewall permissivas demais (any-any)",
@@ -125,10 +127,13 @@ ATIVOS_FICTICIOS = [
 
 
 def popular_banco_com_dados_ficticios() -> None:
+    """Cadastra os ativos e vulnerabilidades fictícios, se o banco estiver vazio."""
     configurar_logging()
     banco_de_dados = ConexaoBancoDeDados()
     servico_de_ativos = AtivoService(AtivoRepository(banco_de_dados))
-    servico_de_vulnerabilidades = VulnerabilidadeService(VulnerabilidadeRepository(banco_de_dados))
+    servico_de_vulnerabilidades = VulnerabilidadeService(
+        VulnerabilidadeRepository(banco_de_dados)
+    )
 
     if servico_de_ativos.listar_todos():
         print(

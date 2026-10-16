@@ -25,7 +25,9 @@ class InterfaceDeTexto:
     """Menu textual com todas as operações de CRUD de ativos e vulnerabilidades."""
 
     def __init__(
-        self, servico_de_ativos: AtivoService, servico_de_vulnerabilidades: VulnerabilidadeService
+        self,
+        servico_de_ativos: AtivoService,
+        servico_de_vulnerabilidades: VulnerabilidadeService,
     ):
         self._servico_de_ativos = servico_de_ativos
         self._servico_de_vulnerabilidades = servico_de_vulnerabilidades
@@ -82,16 +84,23 @@ class InterfaceDeTexto:
         descricao = input("Descrição (opcional): ")
 
         try:
-            ativo = self._servico_de_ativos.cadastrar(nome, responsavel, setor, tipo, descricao)
+            ativo = self._servico_de_ativos.cadastrar(
+                nome, responsavel, setor, tipo, descricao
+            )
         except ErroDeValidacao as erro:
             print(f"Erro: {erro}")
             return
 
         print(f"Ativo '{ativo.nome}' cadastrado com sucesso (ID {ativo.id}).")
 
-        deseja_cadastrar_vulnerabilidades = input(
-            "Deseja cadastrar vulnerabilidades iniciais para este ativo agora? (s/n): "
-        ).strip().lower()
+        deseja_cadastrar_vulnerabilidades = (
+            input(
+                "Deseja cadastrar vulnerabilidades iniciais para este ativo agora? "
+                "(s/n): "
+            )
+            .strip()
+            .lower()
+        )
         if deseja_cadastrar_vulnerabilidades == "s":
             self._menu_de_vulnerabilidades(ativo)
 
@@ -146,7 +155,9 @@ class InterfaceDeTexto:
             return
 
         print("Deixe em branco para manter o valor atual.")
-        responsavel = input(f"Responsável [{ativo.responsavel}]: ").strip() or ativo.responsavel
+        responsavel = (
+            input(f"Responsável [{ativo.responsavel}]: ").strip() or ativo.responsavel
+        )
         setor = input(f"Setor/localização [{ativo.setor}]: ").strip() or ativo.setor
         descricao = input(f"Descrição [{ativo.descricao}]: ").strip() or ativo.descricao
 
@@ -177,10 +188,15 @@ class InterfaceDeTexto:
         if ativo is None:
             return
 
-        confirmacao = input(
-            f"Tem certeza que deseja excluir o ativo '{ativo.nome}' e todas as suas "
-            "vulnerabilidades? (s/n): "
-        ).strip().lower()
+        confirmacao = (
+            input(
+                f"Tem certeza que deseja excluir o ativo '{ativo.nome}' "
+                "e todas as suas "
+                "vulnerabilidades? (s/n): "
+            )
+            .strip()
+            .lower()
+        )
         if confirmacao != "s":
             print("Operação cancelada.")
             return
@@ -265,8 +281,14 @@ class InterfaceDeTexto:
             return
 
         print("Deixe em branco para manter o valor atual.")
-        descricao = input(f"Descrição [{vulnerabilidade.descricao}]: ").strip() or vulnerabilidade.descricao
-        categoria = input(f"Categoria [{vulnerabilidade.categoria}]: ").strip() or vulnerabilidade.categoria
+        descricao = (
+            input(f"Descrição [{vulnerabilidade.descricao}]: ").strip()
+            or vulnerabilidade.descricao
+        )
+        categoria = (
+            input(f"Categoria [{vulnerabilidade.categoria}]: ").strip()
+            or vulnerabilidade.categoria
+        )
 
         nota_cvss = vulnerabilidade.nota_cvss
         texto_nota = input(f"Nota CVSS [{vulnerabilidade.nota_cvss:.1f}]: ").strip()
@@ -302,7 +324,11 @@ class InterfaceDeTexto:
         if vulnerabilidade is None:
             return
 
-        confirmacao = input("Tem certeza que deseja excluir esta vulnerabilidade? (s/n): ").strip().lower()
+        confirmacao = (
+            input("Tem certeza que deseja excluir esta vulnerabilidade? (s/n): ")
+            .strip()
+            .lower()
+        )
         if confirmacao != "s":
             print("Operação cancelada.")
             return
@@ -329,7 +355,9 @@ class InterfaceDeTexto:
             print(f"Erro: {erro}")
             return None
 
-    def _selecionar_vulnerabilidade_por_id(self, ativo: Ativo) -> Optional[Vulnerabilidade]:
+    def _selecionar_vulnerabilidade_por_id(
+        self, ativo: Ativo
+    ) -> Optional[Vulnerabilidade]:
         vulnerabilidades = self._servico_de_vulnerabilidades.listar_por_ativo(ativo.id)
         if not vulnerabilidades:
             print("Este ativo não possui nenhuma vulnerabilidade registrada.")
@@ -342,9 +370,14 @@ class InterfaceDeTexto:
             return None
 
         vulnerabilidade_id = int(texto_id)
-        vulnerabilidade = next((v for v in vulnerabilidades if v.id == vulnerabilidade_id), None)
+        vulnerabilidade = next(
+            (v for v in vulnerabilidades if v.id == vulnerabilidade_id), None
+        )
         if vulnerabilidade is None:
-            print(f"Erro: nenhuma vulnerabilidade com ID {vulnerabilidade_id} para este ativo.")
+            print(
+                f"Erro: nenhuma vulnerabilidade com ID {vulnerabilidade_id} "
+                "para este ativo."
+            )
         return vulnerabilidade
 
     @staticmethod
@@ -355,7 +388,7 @@ class InterfaceDeTexto:
             print(f"  {indice} - {rotulo_amigavel(tipo.name)}")
 
         escolha = input("Escolha o tipo (número): ").strip()
-        if not escolha.isdigit() or not (1 <= int(escolha) <= len(tipos_disponiveis)):
+        if not escolha.isdigit() or not 1 <= int(escolha) <= len(tipos_disponiveis):
             print("Erro: opção de tipo inválida.")
             return None
         return tipos_disponiveis[int(escolha) - 1]
@@ -368,7 +401,7 @@ class InterfaceDeTexto:
             print(f"  {indice} - {rotulo_amigavel(status.name)}")
 
         escolha = input("Escolha o status (número): ").strip()
-        if not escolha.isdigit() or not (1 <= int(escolha) <= len(status_disponiveis)):
+        if not escolha.isdigit() or not 1 <= int(escolha) <= len(status_disponiveis):
             print("Erro: opção de status inválida.")
             return None
         return status_disponiveis[int(escolha) - 1]

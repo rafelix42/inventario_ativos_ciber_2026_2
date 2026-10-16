@@ -8,9 +8,10 @@ from app.exceptions import ErroDeValidacao
 from app.models.enums import Severidade, StatusVulnerabilidade, rotulo_amigavel
 from app.models.vulnerabilidade import Vulnerabilidade
 from app.services.vulnerabilidade_service import VulnerabilidadeService
+from app.ui.componentes import FormularioModal
 
 
-class JanelaFormularioVulnerabilidade(tk.Toplevel):
+class JanelaFormularioVulnerabilidade(FormularioModal):
     """Formulário para cadastro ou edição de uma vulnerabilidade de um ativo.
 
     Quando 'vulnerabilidade_para_editar' é None, o formulário cadastra uma
@@ -30,7 +31,14 @@ class JanelaFormularioVulnerabilidade(tk.Toplevel):
         ao_salvar_com_sucesso: Callable[[], None],
         vulnerabilidade_para_editar: Optional[Vulnerabilidade] = None,
     ):
-        super().__init__(janela_pai)
+        super().__init__(
+            janela_pai,
+            (
+                "Editar Vulnerabilidade"
+                if vulnerabilidade_para_editar
+                else "Nova Vulnerabilidade"
+            ),
+        )
         self._servico_de_vulnerabilidades = servico_de_vulnerabilidades
         self._ativo_id = ativo_id
         self._ao_salvar_com_sucesso = ao_salvar_com_sucesso
@@ -40,20 +48,9 @@ class JanelaFormularioVulnerabilidade(tk.Toplevel):
             rotulo_amigavel(status.name): status for status in StatusVulnerabilidade
         }
 
-        self.title("Editar Vulnerabilidade" if vulnerabilidade_para_editar else "Nova Vulnerabilidade")
-        self.resizable(False, False)
-        self.transient(janela_pai)
+        self._exibir()
 
-        self._construir_widgets()
-        self._preencher_campos_se_estiver_editando()
-
-        self.grab_set()
-        self.focus_set()
-
-    def _construir_widgets(self) -> None:
-        quadro = ttk.Frame(self, padding=15)
-        quadro.grid(row=0, column=0, sticky="nsew")
-
+    def _construir_campos(self, quadro: ttk.Frame) -> None:
         ttk.Label(quadro, text="Descrição:").grid(row=0, column=0, sticky="w", pady=4)
         self._campo_descricao = ttk.Entry(quadro, width=40)
         self._campo_descricao.grid(row=0, column=1, pady=4)
@@ -62,28 +59,28 @@ class JanelaFormularioVulnerabilidade(tk.Toplevel):
         self._campo_categoria = ttk.Entry(quadro, width=40)
         self._campo_categoria.grid(row=1, column=1, pady=4)
 
-        ttk.Label(quadro, text="Nota CVSS (0.0 a 10.0):").grid(row=2, column=0, sticky="w", pady=4)
+        ttk.Label(quadro, text="Nota CVSS (0.0 a 10.0):").grid(
+            row=2, column=0, sticky="w", pady=4
+        )
         self._campo_nota_cvss = ttk.Entry(quadro, width=40)
         self._campo_nota_cvss.grid(row=2, column=1, pady=4)
-        self._campo_nota_cvss.bind("<KeyRelease>", lambda evento: self._atualizar_previa_da_severidade())
+        self._campo_nota_cvss.bind(
+            "<KeyRelease>", lambda evento: self._atualizar_previa_da_severidade()
+        )
 
-        self._rotulo_severidade_calculada = ttk.Label(quadro, text="Severidade: -", foreground="#555555")
+        self._rotulo_severidade_calculada = ttk.Label(
+            quadro, text="Severidade: -", foreground="#555555"
+        )
         self._rotulo_severidade_calculada.grid(row=3, column=1, sticky="w")
 
         ttk.Label(quadro, text="Status:").grid(row=4, column=0, sticky="w", pady=4)
         self._campo_status = ttk.Combobox(
-            quadro, values=list(self._rotulos_por_status.keys()), state="readonly", width=38
+            quadro,
+            values=list(self._rotulos_por_status.keys()),
+            state="readonly",
+            width=38,
         )
         self._campo_status.grid(row=4, column=1, pady=4)
-
-        quadro_de_botoes = ttk.Frame(quadro)
-        quadro_de_botoes.grid(row=5, column=0, columnspan=2, pady=(15, 0))
-        ttk.Button(quadro_de_botoes, text="Salvar", command=self._salvar).grid(
-            row=0, column=0, padx=5
-        )
-        ttk.Button(quadro_de_botoes, text="Cancelar", command=self.destroy).grid(
-            row=0, column=1, padx=5
-        )
 
     def _preencher_campos_se_estiver_editando(self) -> None:
         if self._vulnerabilidade_para_editar is None:
@@ -110,7 +107,7 @@ class JanelaFormularioVulnerabilidade(tk.Toplevel):
 
     def _atualizar_previa_da_severidade(self) -> None:
         nota_cvss = self._ler_nota_cvss_informada()
-        if nota_cvss is None or not (0.0 <= nota_cvss <= 10.0):
+        if nota_cvss is None or not 0.0 <= nota_cvss <= 10.0:
             self._rotulo_severidade_calculada.configure(text="Severidade: -")
             return
 

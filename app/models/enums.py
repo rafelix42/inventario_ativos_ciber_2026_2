@@ -67,5 +67,8 @@ class StatusVulnerabilidade(Enum):
 
 
 def rotulo_amigavel(nome_do_enum: str) -> str:
-    """Formata os nomes para exibição na tela (ex: 'EM_TRATAMENTO' vira 'Em Tratamento')."""
+    """Formata os nomes para exibição na tela.
+
+    Exemplo: 'EM_TRATAMENTO' vira 'Em Tratamento'.
+    """
     return nome_do_enum.replace("_", " ").title()

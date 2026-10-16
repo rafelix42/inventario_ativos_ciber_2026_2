@@ -6,6 +6,8 @@ from app.models.enums import Severidade
 
 
 class TestSeveridadeAPartirDaNotaCvss(unittest.TestCase):
+    """Testes da conversão de nota CVSS em severidade."""
+
     def test_nota_zero_e_classificada_como_nenhuma(self):
         self.assertEqual(Severidade.a_partir_da_nota_cvss(0.0), Severidade.NENHUMA)
 

@@ -7,6 +7,8 @@ from tests.base import CasoDeTesteComBancoTemporario
 
 
 class TestAtivoRepository(CasoDeTesteComBancoTemporario):
+    """Testes de persistência de ativos no SQLite."""
+
     def setUp(self) -> None:
         super().setUp()
         self.repositorio = AtivoRepository(self.banco)
@@ -50,7 +52,8 @@ class TestAtivoRepository(CasoDeTesteComBancoTemporario):
         ativos_cadastrados = self.repositorio.listar_todos()
 
         self.assertEqual(
-            [ativo.id for ativo in ativos_cadastrados], [primeiro_ativo.id, segundo_ativo.id]
+            [ativo.id for ativo in ativos_cadastrados],
+            [primeiro_ativo.id, segundo_ativo.id],
         )
 
     # --- Update ---------------------------------------------------------

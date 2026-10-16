@@ -17,6 +17,9 @@ class CasoDeTesteComBancoTemporario(unittest.TestCase):
     """Cria e destrói um banco SQLite temporário para cada método de teste."""
 
     def setUp(self) -> None:
+        # Não dá para usar 'with' aqui: o diretório precisa existir até o
+        # tearDown, onde é removido explicitamente.
+        # pylint: disable-next=consider-using-with
         self._diretorio_temporario = tempfile.TemporaryDirectory()
         caminho_do_banco_de_teste = Path(self._diretorio_temporario.name) / "teste.db"
         self.banco = ConexaoBancoDeDados(caminho_do_banco_de_teste)

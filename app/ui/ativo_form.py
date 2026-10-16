@@ -8,9 +8,10 @@ from app.exceptions import ErroDeValidacao
 from app.models.ativo import Ativo
 from app.models.enums import TipoAtivo, rotulo_amigavel
 from app.services.ativo_service import AtivoService
+from app.ui.componentes import FormularioModal
 
 
-class JanelaFormularioAtivo(tk.Toplevel):
+class JanelaFormularioAtivo(FormularioModal):
     """Formulário para cadastro ou edição de um ativo de TI.
 
     Quando 'ativo_para_editar' é None, o formulário funciona no modo de
@@ -25,27 +26,22 @@ class JanelaFormularioAtivo(tk.Toplevel):
         ao_salvar_com_sucesso: Callable[[Ativo, bool], None],
         ativo_para_editar: Optional[Ativo] = None,
     ):
-        super().__init__(janela_pai)
+        super().__init__(
+            janela_pai, "Editar Ativo" if ativo_para_editar else "Novo Ativo"
+        )
         self._servico_de_ativos = servico_de_ativos
         self._ao_salvar_com_sucesso = ao_salvar_com_sucesso
         self._ativo_para_editar = ativo_para_editar
-        self._rotulos_por_tipo = {rotulo_amigavel(tipo.name): tipo for tipo in TipoAtivo}
+        self._rotulos_por_tipo = {
+            rotulo_amigavel(tipo.name): tipo for tipo in TipoAtivo
+        }
 
-        self.title("Editar Ativo" if ativo_para_editar else "Novo Ativo")
-        self.resizable(False, False)
-        self.transient(janela_pai)
+        self._exibir()
 
-        self._construir_widgets()
-        self._preencher_campos_se_estiver_editando()
-
-        self.grab_set()
-        self.focus_set()
-
-    def _construir_widgets(self) -> None:
-        quadro = ttk.Frame(self, padding=15)
-        quadro.grid(row=0, column=0, sticky="nsew")
-
-        ttk.Label(quadro, text="Nome / Hostname:").grid(row=0, column=0, sticky="w", pady=4)
+    def _construir_campos(self, quadro: ttk.Frame) -> None:
+        ttk.Label(quadro, text="Nome / Hostname:").grid(
+            row=0, column=0, sticky="w", pady=4
+        )
         self._campo_nome = ttk.Entry(quadro, width=35)
         self._campo_nome.grid(row=0, column=1, pady=4)
 
@@ -53,13 +49,20 @@ class JanelaFormularioAtivo(tk.Toplevel):
         self._campo_responsavel = ttk.Entry(quadro, width=35)
         self._campo_responsavel.grid(row=1, column=1, pady=4)
 
-        ttk.Label(quadro, text="Setor / Localização:").grid(row=2, column=0, sticky="w", pady=4)
+        ttk.Label(quadro, text="Setor / Localização:").grid(
+            row=2, column=0, sticky="w", pady=4
+        )
         self._campo_setor = ttk.Entry(quadro, width=35)
         self._campo_setor.grid(row=2, column=1, pady=4)
 
-        ttk.Label(quadro, text="Tipo de Ativo:").grid(row=3, column=0, sticky="w", pady=4)
+        ttk.Label(quadro, text="Tipo de Ativo:").grid(
+            row=3, column=0, sticky="w", pady=4
+        )
         self._campo_tipo = ttk.Combobox(
-            quadro, values=list(self._rotulos_por_tipo.keys()), state="readonly", width=33
+            quadro,
+            values=list(self._rotulos_por_tipo.keys()),
+            state="readonly",
+            width=33,
         )
         self._campo_tipo.grid(row=3, column=1, pady=4)
 
@@ -71,15 +74,6 @@ class JanelaFormularioAtivo(tk.Toplevel):
             # O nome não é editável para não invalidar buscas já realizadas
             # por quem estiver usando o identificador único do ativo.
             self._campo_nome.configure(state="disabled")
-
-        quadro_de_botoes = ttk.Frame(quadro)
-        quadro_de_botoes.grid(row=5, column=0, columnspan=2, pady=(15, 0))
-        ttk.Button(quadro_de_botoes, text="Salvar", command=self._salvar).grid(
-            row=0, column=0, padx=5
-        )
-        ttk.Button(quadro_de_botoes, text="Cancelar", command=self.destroy).grid(
-            row=0, column=1, padx=5
-        )
 
     def _preencher_campos_se_estiver_editando(self) -> None:
         if self._ativo_para_editar is None:
