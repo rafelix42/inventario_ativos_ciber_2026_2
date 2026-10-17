@@ -14,7 +14,7 @@ from app.exceptions import ErroDeValidacao, VulnerabilidadeNaoEncontradaError
 from app.models.enums import StatusVulnerabilidade
 from app.models.vulnerabilidade import Vulnerabilidade
 from app.repositories.vulnerabilidade_repository import VulnerabilidadeRepository
-from app.services.validacao import validar_apenas_letras
+from app.services.validacao import validar_apenas_letras, validar_letras_e_numeros
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +64,8 @@ class VulnerabilidadeService:
         automaticamente a partir da nota CVSS (ver Severidade.a_partir_da_nota_cvss).
         """
         self._validar_campos_obrigatorios(descricao=descricao, categoria=categoria)
-        validar_apenas_letras(
-            logger, "vulnerabilidade", descricao=descricao, categoria=categoria
-        )
+        validar_letras_e_numeros(logger, "vulnerabilidade", descricao=descricao)
+        validar_apenas_letras(logger, "vulnerabilidade", categoria=categoria)
         self._validar_nota_cvss(nota_cvss)
         self._validar_status(status)
 
@@ -103,9 +102,8 @@ class VulnerabilidadeService:
         """Valida e atualiza uma vulnerabilidade já cadastrada."""
         vulnerabilidade_existente = self._buscar_por_id(vulnerabilidade_id)
         self._validar_campos_obrigatorios(descricao=descricao, categoria=categoria)
-        validar_apenas_letras(
-            logger, "vulnerabilidade", descricao=descricao, categoria=categoria
-        )
+        validar_letras_e_numeros(logger, "vulnerabilidade", descricao=descricao)
+        validar_apenas_letras(logger, "vulnerabilidade", categoria=categoria)
         self._validar_nota_cvss(nota_cvss)
         self._validar_status(status)
 

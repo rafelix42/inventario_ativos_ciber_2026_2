@@ -169,41 +169,54 @@ class TestEquipamentoService(CasoDeTesteComBancoTemporario):
         )
 
 
-class TestEquipamentoServiceApenasLetras(CasoDeTesteComBancoTemporario):
-    """Testes da regra que proíbe números e caracteres especiais nos textos."""
+class TestEquipamentoServiceValidacaoDeTexto(CasoDeTesteComBancoTemporario):
+    """Testes das regras de caracteres permitidos nos campos de texto."""
 
     def setUp(self) -> None:
         super().setUp()
         self.servico = EquipamentoService(EquipamentoRepository(self.banco))
 
-    def test_cadastrar_com_numeros_no_nome_levanta_erro_de_validacao(self):
-        with self.assertRaises(ErroDeValidacao):
-            self.servico.cadastrar(
-                nome="Servidor 01", responsavel="Fulano", setor="TI", classe=Servidor
-            )
-
-    def test_cadastrar_com_caractere_especial_levanta_erro_de_validacao(self):
-        with self.assertLogs(NOME_DO_LOGGER, level="WARNING"):
-            with self.assertRaises(ErroDeValidacao):
-                self.servico.cadastrar(
-                    nome="Servidor", responsavel="Fulano", setor="T.I.", classe=Servidor
-                )
-
-    def test_cadastrar_com_descricao_com_numeros_levanta_erro_de_validacao(self):
-        with self.assertRaises(ErroDeValidacao):
-            self.servico.cadastrar(
-                "Servidor", "Fulano", "TI", Servidor, descricao="Sala 3"
-            )
-
-    def test_cadastrar_aceita_letras_acentuadas_e_espacos(self):
+    def test_cadastrar_aceita_letras_e_numeros_no_nome_setor_e_descricao(self):
         equipamento = self.servico.cadastrar(
-            "Estação Financeiro", "João Antônio", "Gestão", Servidor, "Câmera ç"
+            "Servidor 01", "João Antônio", "Sala 3", Servidor, "Rack 2 Gestão"
         )
 
         self.assertIsNotNone(equipamento.id)
+        self.assertEqual(equipamento.nome, "Servidor 01")
 
-    def test_atualizar_com_numeros_no_setor_levanta_erro_de_validacao(self):
+    def test_cadastrar_com_caractere_especial_no_nome_levanta_erro(self):
+        with self.assertLogs(NOME_DO_LOGGER, level="WARNING"):
+            with self.assertRaises(ErroDeValidacao):
+                self.servico.cadastrar("Servidor-01", "Fulano", "TI", Servidor)
+
+    def test_cadastrar_com_caractere_especial_no_setor_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar("Servidor", "Fulano", "T.I.", Servidor)
+
+    def test_cadastrar_com_caractere_especial_na_descricao_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar(
+                "Servidor", "Fulano", "TI", Servidor, descricao="Produção (Linux)"
+            )
+
+    def test_cadastrar_com_nome_apenas_numerico_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar("12 34", "Fulano", "TI", Servidor)
+
+    def test_cadastrar_com_setor_apenas_numerico_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar("Servidor", "Fulano", "101", Servidor)
+
+    def test_cadastrar_com_descricao_apenas_numerica_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar("Servidor", "Fulano", "TI", Servidor, "2024")
+
+    def test_cadastrar_com_numeros_no_responsavel_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar("Servidor", "Fulano 2", "TI", Servidor)
+
+    def test_atualizar_com_setor_apenas_numerico_levanta_erro(self):
         equipamento = self.servico.cadastrar("Servidor Um", "Fulano", "TI", Servidor)
 
         with self.assertRaises(ErroDeValidacao):
-            self.servico.atualizar(equipamento.id, "Fulano", "Sala 2", Servidor)
+            self.servico.atualizar(equipamento.id, "Fulano", "202", Servidor)

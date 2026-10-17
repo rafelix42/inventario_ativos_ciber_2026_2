@@ -102,27 +102,6 @@ class TestVulnerabilidadeService(CasoDeTesteComBancoTemporario):
                 StatusVulnerabilidade.ABERTA,
             )
 
-    def test_cadastrar_com_numeros_na_descricao_levanta_erro_de_validacao(self):
-        with self.assertRaises(ErroDeValidacao):
-            self.servico.cadastrar(
-                self.equipamento.id,
-                "CVE 2024",
-                "Rede",
-                2.0,
-                StatusVulnerabilidade.ABERTA,
-            )
-
-    def test_cadastrar_com_caractere_especial_na_categoria_levanta_erro(self):
-        with self.assertLogs(NOME_DO_LOGGER, level="WARNING"):
-            with self.assertRaises(ErroDeValidacao):
-                self.servico.cadastrar(
-                    self.equipamento.id,
-                    "Senha fraca",
-                    "Rede/Wi-Fi",
-                    2.0,
-                    StatusVulnerabilidade.ABERTA,
-                )
-
     def test_cadastrar_com_nota_cvss_nao_numerica_levanta_erro_de_validacao(self):
         with self.assertRaises(ErroDeValidacao):
             self.servico.cadastrar(
@@ -250,3 +229,55 @@ class TestVulnerabilidadeService(CasoDeTesteComBancoTemporario):
         self.servico.esquecer_vulnerabilidades_do_equipamento(self.equipamento.id)
 
         self.assertEqual(self.servico.listar_por_equipamento(self.equipamento.id), [])
+
+
+class TestVulnerabilidadeServiceValidacaoDeTexto(CasoDeTesteComBancoTemporario):
+    """Testes das regras de caracteres permitidos nos campos de texto."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.servico_de_equipamentos = EquipamentoService(
+            EquipamentoRepository(self.banco)
+        )
+        self.servico = VulnerabilidadeService(VulnerabilidadeRepository(self.banco))
+        self.equipamento = self.servico_de_equipamentos.cadastrar(
+            "Servidor Um", "Fulano", "TI", Servidor
+        )
+
+    def test_cadastrar_aceita_numeros_na_descricao(self):
+        vulnerabilidade = self.servico.cadastrar(
+            self.equipamento.id,
+            "CVE 2024 1234",
+            "Rede",
+            2.0,
+            StatusVulnerabilidade.ABERTA,
+        )
+
+        self.assertEqual(vulnerabilidade.descricao, "CVE 2024 1234")
+
+    def test_cadastrar_com_descricao_apenas_numerica_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar(
+                self.equipamento.id, "2024", "Rede", 2.0, StatusVulnerabilidade.ABERTA
+            )
+
+    def test_cadastrar_com_numeros_na_categoria_levanta_erro(self):
+        with self.assertRaises(ErroDeValidacao):
+            self.servico.cadastrar(
+                self.equipamento.id,
+                "Senha fraca",
+                "Rede 5",
+                2.0,
+                StatusVulnerabilidade.ABERTA,
+            )
+
+    def test_cadastrar_com_caractere_especial_na_categoria_levanta_erro(self):
+        with self.assertLogs(NOME_DO_LOGGER, level="WARNING"):
+            with self.assertRaises(ErroDeValidacao):
+                self.servico.cadastrar(
+                    self.equipamento.id,
+                    "Senha fraca",
+                    "Rede/Wi-Fi",
+                    2.0,
+                    StatusVulnerabilidade.ABERTA,
+                )

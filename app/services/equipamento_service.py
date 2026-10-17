@@ -13,7 +13,7 @@ from typing import Dict, List, Type
 from app.exceptions import EquipamentoNaoEncontradoError, ErroDeValidacao
 from app.models.equipamento import TIPOS_DE_EQUIPAMENTO, Equipamento
 from app.repositories.equipamento_repository import EquipamentoRepository
-from app.services.validacao import validar_apenas_letras
+from app.services.validacao import validar_apenas_letras, validar_letras_e_numeros
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +78,9 @@ class EquipamentoService:
         self._validar_campos_obrigatorios(
             nome=nome, responsavel=responsavel, setor=setor
         )
-        validar_apenas_letras(
-            logger,
-            "equipamento",
-            nome=nome,
-            responsavel=responsavel,
-            setor=setor,
-            descricao=descricao,
+        validar_apenas_letras(logger, "equipamento", responsavel=responsavel)
+        validar_letras_e_numeros(
+            logger, "equipamento", nome=nome, setor=setor, descricao=descricao
         )
         self._validar_classe_de_equipamento(classe)
 
@@ -121,12 +117,9 @@ class EquipamentoService:
         """
         equipamento_existente = self.buscar_por_id(equipamento_id)
         self._validar_campos_obrigatorios(responsavel=responsavel, setor=setor)
-        validar_apenas_letras(
-            logger,
-            "equipamento",
-            responsavel=responsavel,
-            setor=setor,
-            descricao=descricao,
+        validar_apenas_letras(logger, "equipamento", responsavel=responsavel)
+        validar_letras_e_numeros(
+            logger, "equipamento", setor=setor, descricao=descricao
         )
         self._validar_classe_de_equipamento(classe)
 

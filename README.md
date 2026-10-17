@@ -87,9 +87,12 @@ coluna `equipamento_id`.
 - Cadastro, edição e exclusão de vulnerabilidades vinculadas a um equipamento.
 - Mensagem explícita quando um equipamento não possui nenhuma vulnerabilidade
   cadastrada.
-- Campos de texto (nome, responsável, setor, descrição e categoria) aceitam
-  apenas letras, inclusive acentuadas, e espaços: números e caracteres
-  especiais são recusados (`app/services/validacao.py`).
+- Nenhum campo de texto aceita caracteres especiais (pontuação, hífen,
+  símbolos etc.). Regras por campo (`app/services/validacao.py`):
+  - **nome**, **setor** e **descrição** (do equipamento e da
+    vulnerabilidade): letras, números e espaços, mas não apenas números
+    (ex.: `Servidor 01` é aceito; `2024` não);
+  - **responsável** e **categoria**: apenas letras e espaços.
 - Tratamento de erros de validação (campos vazios, tipos inválidos) exibido
   no próprio terminal, sem travar a aplicação.
 
