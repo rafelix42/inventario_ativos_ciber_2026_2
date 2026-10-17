@@ -7,20 +7,6 @@ explícito, em um único lugar, quais são os valores válidos para cada campo.
 from enum import Enum
 
 
-class TipoAtivo(Enum):
-    """Tipos de ativos de TI que podem ser cadastrados no inventário."""
-
-    ESTACAO_DE_TRABALHO = 1
-    NOTEBOOK = 2
-    SERVIDOR = 3
-    BANCO_DE_DADOS = 4
-    SOFTWARE_LICENCIADO = 5
-    IMPRESSORA = 6
-    ROTEADOR = 7
-    SWITCH = 8
-    FIREWALL = 9
-
-
 class Severidade(Enum):
     """Nível de gravidade de uma vulnerabilidade.
 

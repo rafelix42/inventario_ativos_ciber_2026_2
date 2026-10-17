@@ -1,4 +1,4 @@
-"""Modelo que representa uma vulnerabilidade associada a um ativo de TI."""
+"""Modelo que representa uma vulnerabilidade associada a um equipamento de TI."""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -8,9 +8,9 @@ from app.models.enums import Severidade, StatusVulnerabilidade
 
 @dataclass
 class Vulnerabilidade:
-    """Representa uma vulnerabilidade encontrada em um ativo específico.
+    """Representa uma vulnerabilidade encontrada em um equipamento específico.
 
-    O campo 'ativo_id' liga a vulnerabilidade ao ativo dono dela. O campo
+    O campo 'equipamento_id' liga a vulnerabilidade ao equipamento dono dela. O campo
     'id' só é preenchido depois que o registro é gravado no banco de dados.
 
     A severidade não é armazenada diretamente: o que é cadastrado e
@@ -19,7 +19,7 @@ class Vulnerabilidade:
     partir dessa nota, então nunca fica desatualizado em relação a ela.
     """
 
-    ativo_id: int
+    equipamento_id: int
     descricao: str
     categoria: str
     nota_cvss: float

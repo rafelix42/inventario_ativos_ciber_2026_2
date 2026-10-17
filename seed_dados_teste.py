@@ -1,7 +1,7 @@
 """Script utilitário para popular o banco de dados com dados fictícios.
 
-Útil para testar a aplicação manualmente sem precisar cadastrar tudo pela
-interface gráfica. Reaproveita os mesmos serviços usados pela aplicação
+Útil para testar a aplicação manualmente sem precisar cadastrar tudo pelo
+menu no terminal. Reaproveita os mesmos serviços usados pela aplicação
 principal, garantindo que os dados fictícios passem pelas mesmas validações
 dos dados reais.
 
@@ -10,20 +10,28 @@ Uso:
 """
 
 from app.logging_config import configurar_logging
-from app.models.enums import StatusVulnerabilidade, TipoAtivo
-from app.repositories.ativo_repository import AtivoRepository
+from app.models.enums import StatusVulnerabilidade
+from app.models.equipamento import (
+    EstacaoDeTrabalho,
+    Firewall,
+    Impressora,
+    Roteador,
+    Servidor,
+    Switch,
+)
+from app.repositories.equipamento_repository import EquipamentoRepository
 from app.repositories.database import ConexaoBancoDeDados
 from app.repositories.vulnerabilidade_repository import VulnerabilidadeRepository
-from app.services.ativo_service import AtivoService
+from app.services.equipamento_service import EquipamentoService
 from app.services.vulnerabilidade_service import VulnerabilidadeService
 
-ATIVOS_FICTICIOS = [
+EQUIPAMENTOS_FICTICIOS = [
     {
-        "nome": "DB-Server-01",
+        "nome": "Servidor Banco de Dados",
         "responsavel": "Raphael Felix",
-        "setor": "Data Center - Sala 1",
-        "tipo": TipoAtivo.SERVIDOR,
-        "descricao": "Servidor de banco de dados de produção (PostgreSQL).",
+        "setor": "Data Center",
+        "classe": Servidor,
+        "descricao": "Servidor de banco de dados de produção com PostgreSQL",
         "vulnerabilidades": [
             {
                 "descricao": "Senha padrão do administrador não foi alterada",
@@ -40,11 +48,11 @@ ATIVOS_FICTICIOS = [
         ],
     },
     {
-        "nome": "WEB-Server-02",
+        "nome": "Servidor Web",
         "responsavel": "Mariana Souza",
-        "setor": "Data Center - Sala 1",
-        "tipo": TipoAtivo.SERVIDOR,
-        "descricao": "Servidor de aplicação web (Nginx + Gunicorn).",
+        "setor": "Data Center",
+        "classe": Servidor,
+        "descricao": "Servidor de aplicação web com Nginx e Gunicorn",
         "vulnerabilidades": [
             {
                 "descricao": "Certificado TLS expirado",
@@ -55,11 +63,11 @@ ATIVOS_FICTICIOS = [
         ],
     },
     {
-        "nome": "Roteador-Borda-01",
+        "nome": "Roteador de Borda",
         "responsavel": "Carlos Eduardo",
         "setor": "Sala de Telecom",
-        "tipo": TipoAtivo.ROTEADOR,
-        "descricao": "Roteador de borda que conecta a rede interna à internet.",
+        "classe": Roteador,
+        "descricao": "Roteador de borda que conecta a rede interna à internet",
         "vulnerabilidades": [
             {
                 "descricao": "Interface de gerência exposta na internet",
@@ -70,24 +78,24 @@ ATIVOS_FICTICIOS = [
         ],
     },
     {
-        "nome": "Switch-Core-01",
+        "nome": "Switch Core",
         "responsavel": "Carlos Eduardo",
         "setor": "Sala de Telecom",
-        "tipo": TipoAtivo.SWITCH,
-        "descricao": "Switch principal do backbone da rede.",
+        "classe": Switch,
+        "descricao": "Switch principal do backbone da rede",
         "vulnerabilidades": [],
     },
     {
-        "nome": "Firewall-Perimetro-01",
+        "nome": "Firewall de Perímetro",
         "responsavel": "Ana Paula Lima",
         "setor": "Sala de Telecom",
-        "tipo": TipoAtivo.FIREWALL,
+        "classe": Firewall,
         "descricao": (
-            "Firewall de perímetro responsável pelo filtro de tráfego externo."
+            "Firewall de perímetro responsável pelo filtro de tráfego externo"
         ),
         "vulnerabilidades": [
             {
-                "descricao": "Regras de firewall permissivas demais (any-any)",
+                "descricao": "Regras de firewall permissivas demais",
                 "categoria": "Configuração Insegura",
                 "nota_cvss": 8.6,
                 "status": StatusVulnerabilidade.EM_TRATAMENTO,
@@ -101,14 +109,14 @@ ATIVOS_FICTICIOS = [
         ],
     },
     {
-        "nome": "Estacao-RH-05",
+        "nome": "Estação do RH",
         "responsavel": "Juliana Costa",
         "setor": "Recursos Humanos",
-        "tipo": TipoAtivo.ESTACAO_DE_TRABALHO,
-        "descricao": "Estação de trabalho utilizada pela equipe de RH.",
+        "classe": EstacaoDeTrabalho,
+        "descricao": "Estação de trabalho utilizada pela equipe de RH",
         "vulnerabilidades": [
             {
-                "descricao": "Antivírus desatualizado há mais de 90 dias",
+                "descricao": "Antivírus desatualizado há mais de noventa dias",
                 "categoria": "Proteção de Endpoint",
                 "nota_cvss": 2.4,
                 "status": StatusVulnerabilidade.ABERTA,
@@ -116,54 +124,60 @@ ATIVOS_FICTICIOS = [
         ],
     },
     {
-        "nome": "Impressora-Financeiro-01",
+        "nome": "Impressora do Financeiro",
         "responsavel": "Juliana Costa",
         "setor": "Financeiro",
-        "tipo": TipoAtivo.IMPRESSORA,
-        "descricao": "Impressora multifuncional compartilhada pelo setor financeiro.",
+        "classe": Impressora,
+        "descricao": "Impressora multifuncional compartilhada pelo setor financeiro",
         "vulnerabilidades": [],
     },
 ]
 
 
 def popular_banco_com_dados_ficticios() -> None:
-    """Cadastra os ativos e vulnerabilidades fictícios, se o banco estiver vazio."""
+    """Cadastra equipamentos e vulnerabilidades fictícios, se o banco estiver vazio."""
     configurar_logging()
     banco_de_dados = ConexaoBancoDeDados()
-    servico_de_ativos = AtivoService(AtivoRepository(banco_de_dados))
+    servico_de_equipamentos = EquipamentoService(EquipamentoRepository(banco_de_dados))
     servico_de_vulnerabilidades = VulnerabilidadeService(
         VulnerabilidadeRepository(banco_de_dados)
     )
 
-    if servico_de_ativos.listar_todos():
+    if servico_de_equipamentos.listar_todos():
         print(
-            "O banco de dados já possui ativos cadastrados. "
+            "O banco de dados já possui equipamentos cadastrados. "
             "Nenhum dado fictício foi inserido para evitar duplicidade."
         )
         banco_de_dados.fechar()
         return
 
-    for dados_do_ativo in ATIVOS_FICTICIOS:
-        ativo_cadastrado = servico_de_ativos.cadastrar(
-            nome=dados_do_ativo["nome"],
-            responsavel=dados_do_ativo["responsavel"],
-            setor=dados_do_ativo["setor"],
-            tipo=dados_do_ativo["tipo"],
-            descricao=dados_do_ativo["descricao"],
+    for dados_do_equipamento in EQUIPAMENTOS_FICTICIOS:
+        equipamento_cadastrado = servico_de_equipamentos.cadastrar(
+            nome=dados_do_equipamento["nome"],
+            responsavel=dados_do_equipamento["responsavel"],
+            setor=dados_do_equipamento["setor"],
+            classe=dados_do_equipamento["classe"],
+            descricao=dados_do_equipamento["descricao"],
         )
 
-        for dados_da_vulnerabilidade in dados_do_ativo["vulnerabilidades"]:
+        for dados_da_vulnerabilidade in dados_do_equipamento["vulnerabilidades"]:
             servico_de_vulnerabilidades.cadastrar(
-                ativo_id=ativo_cadastrado.id,
+                equipamento_id=equipamento_cadastrado.id,
                 descricao=dados_da_vulnerabilidade["descricao"],
                 categoria=dados_da_vulnerabilidade["categoria"],
                 nota_cvss=dados_da_vulnerabilidade["nota_cvss"],
                 status=dados_da_vulnerabilidade["status"],
             )
 
-        print(f"Ativo '{ativo_cadastrado.nome}' cadastrado (ID {ativo_cadastrado.id}).")
+        print(
+            f"Equipamento '{equipamento_cadastrado.nome}' cadastrado "
+            f"(ID {equipamento_cadastrado.id})."
+        )
 
-    print(f"\n{len(ATIVOS_FICTICIOS)} ativos fictícios cadastrados com sucesso.")
+    print(
+        f"\n{len(EQUIPAMENTOS_FICTICIOS)} equipamentos fictícios "
+        "cadastrados com sucesso."
+    )
     banco_de_dados.fechar()
 
 

@@ -1,5 +1,5 @@
 # Este projeto não tem nenhuma dependência de terceiros: usa apenas
-# bibliotecas padrão do Python (tkinter, sqlite3, enum, dataclasses,
+# bibliotecas padrão do Python (sqlite3, enum, dataclasses,
 # pathlib, logging, typing, tempfile, unittest). Não há nada para instalar
 # com "pip install".
 #
@@ -12,12 +12,3 @@
 # de distribuições Linux como Debian/Ubuntu/Fedora). Basta `import sqlite3`
 # funcionar, o que pode ser conferido com:
 #   python3 -c "import sqlite3; print('ok')"
-#
-# --- tkinter -------------------------------------------------------------
-# Ao contrário do sqlite3, em distribuições Linux baseadas em Debian/Ubuntu
-# o tkinter é empacotado à parte (por depender do Tcl/Tk) e pode precisar
-# ser instalado manualmente via gerenciador de pacotes do sistema
-# operacional, por exemplo:
-#   sudo apt install python3-tk
-# Isso só é necessário para rodar a interface gráfica — o modo terminal da
-# aplicação funciona normalmente mesmo sem o tkinter instalado.

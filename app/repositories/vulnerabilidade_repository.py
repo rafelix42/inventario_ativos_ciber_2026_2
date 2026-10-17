@@ -19,11 +19,11 @@ class VulnerabilidadeRepository:
         cursor = self._conexao.execute(
             """
             INSERT INTO vulnerabilidades
-                (ativo_id, descricao, categoria, nota_cvss, status)
+                (equipamento_id, descricao, categoria, nota_cvss, status)
             VALUES (?, ?, ?, ?, ?)
             """,
             (
-                vulnerabilidade.ativo_id,
+                vulnerabilidade.equipamento_id,
                 vulnerabilidade.descricao,
                 vulnerabilidade.categoria,
                 vulnerabilidade.nota_cvss,
@@ -66,10 +66,11 @@ class VulnerabilidadeRepository:
         ).fetchone()
         return self._converter_linha_em_vulnerabilidade(linha) if linha else None
 
-    def listar_por_ativo(self, ativo_id: int) -> List[Vulnerabilidade]:
-        """Retorna as vulnerabilidades de um ativo, ordenadas por ID."""
+    def listar_por_equipamento(self, equipamento_id: int) -> List[Vulnerabilidade]:
+        """Retorna as vulnerabilidades de um equipamento, ordenadas por ID."""
         linhas = self._conexao.execute(
-            "SELECT * FROM vulnerabilidades WHERE ativo_id = ? ORDER BY id", (ativo_id,)
+            "SELECT * FROM vulnerabilidades WHERE equipamento_id = ? ORDER BY id",
+            (equipamento_id,),
         ).fetchall()
         return [self._converter_linha_em_vulnerabilidade(linha) for linha in linhas]
 
@@ -84,7 +85,7 @@ class VulnerabilidadeRepository:
     def _converter_linha_em_vulnerabilidade(linha: sqlite3.Row) -> Vulnerabilidade:
         return Vulnerabilidade(
             id=linha["id"],
-            ativo_id=linha["ativo_id"],
+            equipamento_id=linha["equipamento_id"],
             descricao=linha["descricao"],
             categoria=linha["categoria"],
             nota_cvss=linha["nota_cvss"],
