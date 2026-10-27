@@ -76,15 +76,42 @@ menu.
 No banco de dados, todas as subclasses ficam na mesma tabela
 `equipamentos`. A coluna `classe` guarda o nome da subclasse (ex.:
 `Servidor`), usado pelo repositório para recriar o objeto com a classe
-certa ao ler o registro. As vulnerabilidades referenciam o equipamento pela
-coluna `equipamento_id`.
+certa ao ler o registro.
+
+## Vulnerabilidades compartilhadas entre equipamentos
+
+As vulnerabilidades existem independentemente dos equipamentos: uma mesma
+vulnerabilidade pode afetar vários equipamentos, e um equipamento pode ter
+várias vulnerabilidades (relação N:N). No banco de dados, a tabela
+`vulnerabilidades` guarda só os dados da vulnerabilidade, e a tabela
+`equipamento_vulnerabilidade` guarda cada par (equipamento, vulnerabilidade).
+
+- **Pelo equipamento** (menu 6): ao atribuir vulnerabilidades, o programa
+  lista as já cadastradas que ainda não afetam o equipamento, para escolher
+  uma pelo ID, ou permite cadastrar uma nova.
+- **Pela vulnerabilidade** (menu 7, catálogo): após cadastrar ou editar uma
+  vulnerabilidade, o programa oferece listar os equipamentos afetados por
+  ela e atribuir ou remover equipamentos.
+- Remover uma vulnerabilidade de um equipamento não a exclui do catálogo.
+- **Ao excluir um equipamento**, são excluídas junto apenas as
+  vulnerabilidades que afetavam somente ele. As que também afetam outros
+  equipamentos continuam cadastradas. A regra é garantida pelo próprio banco
+  (trigger `excluir_vulnerabilidades_orfas`), e o menu avisa antes de
+  confirmar quais vulnerabilidades serão excluídas.
+
+Bancos criados por versões anteriores (com a coluna `equipamento_id` em
+`vulnerabilidades`) são migrados automaticamente ao abrir a aplicação, sem
+perder dados (`app/repositories/database.py`).
 
 ## Funcionalidades
 
 - Cadastro, edição, exclusão e busca (por ID ou nome) de equipamentos de TI.
-- Ao excluir um equipamento, as vulnerabilidades associadas são removidas em
-  cascata (garantido pelo próprio banco de dados, com `ON DELETE CASCADE`).
-- Cadastro, edição e exclusão de vulnerabilidades vinculadas a um equipamento.
+- Catálogo de vulnerabilidades: cadastro, edição e exclusão, independentes
+  dos equipamentos.
+- Atribuição e remoção de vulnerabilidades em equipamentos, pelos dois lados
+  (pelo equipamento ou pela vulnerabilidade).
+- Ao excluir um equipamento, as vulnerabilidades exclusivas dele são
+  excluídas junto; as compartilhadas são mantidas.
 - Mensagem explícita quando um equipamento não possui nenhuma vulnerabilidade
   cadastrada.
 - Nenhum campo de texto aceita caracteres especiais (pontuação, hífen,
@@ -132,7 +159,7 @@ Formato de cada linha: `data/hora [NÍVEL] módulo: mensagem`. Exemplo:
 ```
 2026-09-14 22:10:03,512 [INFO] app.services.equipamento_service: Equipamento cadastrado: id=1 nome='DB-Server-01' responsavel='Raphael' setor='TI' classe=Servidor
 2026-09-14 22:10:15,201 [WARNING] app.services.equipamento_service: Validação de equipamento falhou: campo obrigatório 'nome' não foi informado.
-2026-09-14 22:11:02,884 [INFO] app.services.equipamento_service: Equipamento excluído: id=1 nome='DB-Server-01' (vulnerabilidades associadas removidas em cascata)
+2026-09-14 22:11:02,884 [INFO] app.services.equipamento_service: Equipamento excluído: id=1 nome='DB-Server-01' (vulnerabilidades exclusivas dele removidas em cascata)
 ```
 
 A configuração fica centralizada em `app/logging_config.py`
@@ -157,9 +184,10 @@ Estrutura dos testes:
 tests/
 ├── base.py                             # Classe base: cria/destrói um SQLite temporário por teste
 ├── test_equipamento_repository.py      # CRUD de equipamentos direto na camada SQLite
-├── test_vulnerabilidade_repository.py  # CRUD de vulnerabilidades + exclusão em cascata (RF07)
+├── test_vulnerabilidade_repository.py  # CRUD de vulnerabilidades + associações + trigger de exclusão
 ├── test_equipamento_service.py         # CRUD + validações (RNF02) + cache em dicionário (RF10/RNF05)
-├── test_vulnerabilidade_service.py     # CRUD + validação da nota CVSS (0.0–10.0) + RF09
+├── test_vulnerabilidade_service.py     # CRUD + nota CVSS + associações N:N + exclusão de equipamento
+├── test_database.py                    # Migração automática do formato antigo do banco
 └── test_severidade_cvss.py             # Classificação da nota CVSS nas faixas de severidade
 ```
 

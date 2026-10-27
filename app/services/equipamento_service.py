@@ -151,14 +151,18 @@ class EquipamentoService:
         return equipamento_atualizado
 
     def excluir(self, equipamento_id: int) -> None:
-        """Exclui um equipamento do banco de dados (o banco remove em cascata as
-        vulnerabilidades associadas a ele) e do cache em memória."""
+        """Exclui um equipamento do banco de dados e do cache em memória.
+
+        O banco remove as associações do equipamento com vulnerabilidades e
+        exclui as vulnerabilidades que afetavam apenas ele; as que também
+        afetam outros equipamentos continuam cadastradas.
+        """
         equipamento_a_ser_excluido = self.buscar_por_id(equipamento_id)
         self._repositorio.excluir(equipamento_id)
         del self._equipamentos_por_id[equipamento_id]
         logger.info(
             "Equipamento excluído: id=%s nome=%r "
-            "(vulnerabilidades associadas removidas em cascata)",
+            "(vulnerabilidades exclusivas dele removidas em cascata)",
             equipamento_a_ser_excluido.id,
             equipamento_a_ser_excluido.nome,
         )

@@ -25,111 +25,110 @@ from app.repositories.vulnerabilidade_repository import VulnerabilidadeRepositor
 from app.services.equipamento_service import EquipamentoService
 from app.services.vulnerabilidade_service import VulnerabilidadeService
 
+# Vulnerabilidades do catálogo, indexadas por uma chave usada abaixo para
+# atribuí-las aos equipamentos. Uma mesma vulnerabilidade pode afetar
+# vários equipamentos.
+VULNERABILIDADES_FICTICIAS = {
+    "senha_padrao": {
+        "descricao": "Senha padrão do administrador não foi alterada",
+        "categoria": "Autenticação",
+        "nota_cvss": 9.8,
+        "status": StatusVulnerabilidade.ABERTA,
+    },
+    "postgresql": {
+        "descricao": "Versão desatualizada do PostgreSQL com CVE conhecida",
+        "categoria": "Software Desatualizado",
+        "nota_cvss": 8.1,
+        "status": StatusVulnerabilidade.EM_TRATAMENTO,
+    },
+    "tls": {
+        "descricao": "Certificado TLS expirado",
+        "categoria": "Criptografia",
+        "nota_cvss": 5.3,
+        "status": StatusVulnerabilidade.CORRIGIDA,
+    },
+    "gerencia_exposta": {
+        "descricao": "Interface de gerência exposta na internet",
+        "categoria": "Configuração Insegura",
+        "nota_cvss": 9.1,
+        "status": StatusVulnerabilidade.ABERTA,
+    },
+    "regras_permissivas": {
+        "descricao": "Regras de firewall permissivas demais",
+        "categoria": "Configuração Insegura",
+        "nota_cvss": 8.6,
+        "status": StatusVulnerabilidade.EM_TRATAMENTO,
+    },
+    "firmware": {
+        "descricao": "Firmware desatualizado",
+        "categoria": "Software Desatualizado",
+        "nota_cvss": 4.3,
+        "status": StatusVulnerabilidade.ACEITA_COMO_RISCO,
+    },
+    "antivirus": {
+        "descricao": "Antivírus desatualizado há mais de 90 dias",
+        "categoria": "Proteção de Endpoint",
+        "nota_cvss": 2.4,
+        "status": StatusVulnerabilidade.ABERTA,
+    },
+}
+
 EQUIPAMENTOS_FICTICIOS = [
     {
-        "nome": "Servidor Banco de Dados",
+        "nome": "Servidor Banco de Dados 01",
         "responsavel": "Raphael Felix",
-        "setor": "Data Center",
+        "setor": "Data Center Sala 1",
         "classe": Servidor,
         "descricao": "Servidor de banco de dados de produção com PostgreSQL",
-        "vulnerabilidades": [
-            {
-                "descricao": "Senha padrão do administrador não foi alterada",
-                "categoria": "Autenticação",
-                "nota_cvss": 9.8,
-                "status": StatusVulnerabilidade.ABERTA,
-            },
-            {
-                "descricao": "Versão desatualizada do PostgreSQL com CVE conhecida",
-                "categoria": "Software Desatualizado",
-                "nota_cvss": 8.1,
-                "status": StatusVulnerabilidade.EM_TRATAMENTO,
-            },
-        ],
+        "vulnerabilidades": ["senha_padrao", "postgresql", "tls"],
     },
     {
-        "nome": "Servidor Web",
+        "nome": "Servidor Web 02",
         "responsavel": "Mariana Souza",
-        "setor": "Data Center",
+        "setor": "Data Center Sala 1",
         "classe": Servidor,
         "descricao": "Servidor de aplicação web com Nginx e Gunicorn",
-        "vulnerabilidades": [
-            {
-                "descricao": "Certificado TLS expirado",
-                "categoria": "Criptografia",
-                "nota_cvss": 5.3,
-                "status": StatusVulnerabilidade.CORRIGIDA,
-            },
-        ],
+        "vulnerabilidades": ["tls"],
     },
     {
-        "nome": "Roteador de Borda",
+        "nome": "Roteador de Borda 01",
         "responsavel": "Carlos Eduardo",
         "setor": "Sala de Telecom",
         "classe": Roteador,
         "descricao": "Roteador de borda que conecta a rede interna à internet",
-        "vulnerabilidades": [
-            {
-                "descricao": "Interface de gerência exposta na internet",
-                "categoria": "Configuração Insegura",
-                "nota_cvss": 9.1,
-                "status": StatusVulnerabilidade.ABERTA,
-            },
-        ],
+        "vulnerabilidades": ["gerencia_exposta", "firmware"],
     },
     {
-        "nome": "Switch Core",
+        "nome": "Switch Core 01",
         "responsavel": "Carlos Eduardo",
         "setor": "Sala de Telecom",
         "classe": Switch,
         "descricao": "Switch principal do backbone da rede",
-        "vulnerabilidades": [],
+        "vulnerabilidades": ["firmware"],
     },
     {
-        "nome": "Firewall de Perímetro",
+        "nome": "Firewall de Perímetro 01",
         "responsavel": "Ana Paula Lima",
         "setor": "Sala de Telecom",
         "classe": Firewall,
-        "descricao": (
-            "Firewall de perímetro responsável pelo filtro de tráfego externo"
-        ),
-        "vulnerabilidades": [
-            {
-                "descricao": "Regras de firewall permissivas demais",
-                "categoria": "Configuração Insegura",
-                "nota_cvss": 8.6,
-                "status": StatusVulnerabilidade.EM_TRATAMENTO,
-            },
-            {
-                "descricao": "Firmware desatualizado",
-                "categoria": "Software Desatualizado",
-                "nota_cvss": 4.3,
-                "status": StatusVulnerabilidade.ACEITA_COMO_RISCO,
-            },
-        ],
+        "descricao": "Firewall de perímetro responsável pelo filtro de tráfego externo",
+        "vulnerabilidades": ["regras_permissivas", "firmware"],
     },
     {
-        "nome": "Estação do RH",
+        "nome": "Estação RH 05",
         "responsavel": "Juliana Costa",
         "setor": "Recursos Humanos",
         "classe": EstacaoDeTrabalho,
         "descricao": "Estação de trabalho utilizada pela equipe de RH",
-        "vulnerabilidades": [
-            {
-                "descricao": "Antivírus desatualizado há mais de noventa dias",
-                "categoria": "Proteção de Endpoint",
-                "nota_cvss": 2.4,
-                "status": StatusVulnerabilidade.ABERTA,
-            },
-        ],
+        "vulnerabilidades": ["antivirus"],
     },
     {
-        "nome": "Impressora do Financeiro",
+        "nome": "Impressora Financeiro 01",
         "responsavel": "Juliana Costa",
         "setor": "Financeiro",
         "classe": Impressora,
         "descricao": "Impressora multifuncional compartilhada pelo setor financeiro",
-        "vulnerabilidades": [],
+        "vulnerabilidades": ["senha_padrao"],
     },
 ]
 
@@ -143,13 +142,21 @@ def popular_banco_com_dados_ficticios() -> None:
         VulnerabilidadeRepository(banco_de_dados)
     )
 
-    if servico_de_equipamentos.listar_todos():
+    if (
+        servico_de_equipamentos.listar_todos()
+        or servico_de_vulnerabilidades.listar_todas()
+    ):
         print(
-            "O banco de dados já possui equipamentos cadastrados. "
+            "O banco de dados já possui dados cadastrados. "
             "Nenhum dado fictício foi inserido para evitar duplicidade."
         )
         banco_de_dados.fechar()
         return
+
+    vulnerabilidades_por_chave = {
+        chave: servico_de_vulnerabilidades.cadastrar(**dados)
+        for chave, dados in VULNERABILIDADES_FICTICIAS.items()
+    }
 
     for dados_do_equipamento in EQUIPAMENTOS_FICTICIOS:
         equipamento_cadastrado = servico_de_equipamentos.cadastrar(
@@ -159,14 +166,9 @@ def popular_banco_com_dados_ficticios() -> None:
             classe=dados_do_equipamento["classe"],
             descricao=dados_do_equipamento["descricao"],
         )
-
-        for dados_da_vulnerabilidade in dados_do_equipamento["vulnerabilidades"]:
-            servico_de_vulnerabilidades.cadastrar(
-                equipamento_id=equipamento_cadastrado.id,
-                descricao=dados_da_vulnerabilidade["descricao"],
-                categoria=dados_da_vulnerabilidade["categoria"],
-                nota_cvss=dados_da_vulnerabilidade["nota_cvss"],
-                status=dados_da_vulnerabilidade["status"],
+        for chave in dados_do_equipamento["vulnerabilidades"]:
+            servico_de_vulnerabilidades.associar(
+                vulnerabilidades_por_chave[chave].id, equipamento_cadastrado.id
             )
 
         print(
@@ -175,7 +177,8 @@ def popular_banco_com_dados_ficticios() -> None:
         )
 
     print(
-        f"\n{len(EQUIPAMENTOS_FICTICIOS)} equipamentos fictícios "
+        f"\n{len(EQUIPAMENTOS_FICTICIOS)} equipamentos e "
+        f"{len(VULNERABILIDADES_FICTICIAS)} vulnerabilidades fictícios "
         "cadastrados com sucesso."
     )
     banco_de_dados.fechar()
