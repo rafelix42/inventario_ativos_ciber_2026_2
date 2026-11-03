@@ -70,6 +70,24 @@ class ConexaoBancoDeDados:
                     ON DELETE CASCADE
             )
             """)
+        # Dependências entre equipamentos (matriz A da análise de risco):
+        # 'equipamento_id' depende de 'depende_de_id' e herda 'fator' do
+        # risco dele. Excluir qualquer um dos dois equipamentos remove a
+        # dependência (ON DELETE CASCADE).
+        self._conexao.execute("""
+            CREATE TABLE IF NOT EXISTS dependencias (
+                equipamento_id INTEGER NOT NULL,
+                depende_de_id INTEGER NOT NULL,
+                fator REAL NOT NULL,
+                PRIMARY KEY (equipamento_id, depende_de_id),
+                FOREIGN KEY (equipamento_id) REFERENCES equipamentos (id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (depende_de_id) REFERENCES equipamentos (id)
+                    ON DELETE CASCADE,
+                CHECK (equipamento_id <> depende_de_id),
+                CHECK (fator >= 0 AND fator < 1)
+            )
+            """)
         # Ao excluir um equipamento, as vulnerabilidades que só afetavam ele
         # são excluídas junto. As que também afetam outros equipamentos (ou
         # que nunca foram associadas a ele) continuam cadastradas.

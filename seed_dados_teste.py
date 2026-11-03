@@ -19,11 +19,8 @@ from app.models.equipamento import (
     Servidor,
     Switch,
 )
-from app.repositories.equipamento_repository import EquipamentoRepository
 from app.repositories.database import ConexaoBancoDeDados
-from app.repositories.vulnerabilidade_repository import VulnerabilidadeRepository
-from app.services.equipamento_service import EquipamentoService
-from app.services.vulnerabilidade_service import VulnerabilidadeService
+from app.servicos import criar_servicos
 
 # Vulnerabilidades do catálogo, indexadas por uma chave usada abaixo para
 # atribuí-las aos equipamentos. Uma mesma vulnerabilidade pode afetar
@@ -132,15 +129,29 @@ EQUIPAMENTOS_FICTICIOS = [
     },
 ]
 
+# Dependências entre equipamentos (matriz A da análise de risco), no formato
+# (nome de quem depende, nome de quem ele depende, fator). A soma dos fatores
+# de um mesmo equipamento deve ser menor que 1.
+DEPENDENCIAS_FICTICIAS = [
+    ("Servidor Web 02", "Servidor Banco de Dados 01", 0.4),
+    ("Servidor Web 02", "Firewall de Perímetro 01", 0.2),
+    ("Servidor Banco de Dados 01", "Switch Core 01", 0.2),
+    ("Switch Core 01", "Firewall de Perímetro 01", 0.3),
+    ("Firewall de Perímetro 01", "Roteador de Borda 01", 0.5),
+    ("Estação RH 05", "Switch Core 01", 0.3),
+    ("Estação RH 05", "Servidor Web 02", 0.2),
+    ("Impressora Financeiro 01", "Switch Core 01", 0.1),
+]
+
 
 def popular_banco_com_dados_ficticios() -> None:
     """Cadastra equipamentos e vulnerabilidades fictícios, se o banco estiver vazio."""
     configurar_logging()
     banco_de_dados = ConexaoBancoDeDados()
-    servico_de_equipamentos = EquipamentoService(EquipamentoRepository(banco_de_dados))
-    servico_de_vulnerabilidades = VulnerabilidadeService(
-        VulnerabilidadeRepository(banco_de_dados)
-    )
+    servicos = criar_servicos(banco_de_dados)
+    servico_de_equipamentos = servicos.equipamentos
+    servico_de_vulnerabilidades = servicos.vulnerabilidades
+    servico_de_dependencias = servicos.dependencias
 
     if (
         servico_de_equipamentos.listar_todos()
@@ -158,6 +169,7 @@ def popular_banco_com_dados_ficticios() -> None:
         for chave, dados in VULNERABILIDADES_FICTICIAS.items()
     }
 
+    ids_por_nome = {}
     for dados_do_equipamento in EQUIPAMENTOS_FICTICIOS:
         equipamento_cadastrado = servico_de_equipamentos.cadastrar(
             nome=dados_do_equipamento["nome"],
@@ -171,14 +183,21 @@ def popular_banco_com_dados_ficticios() -> None:
                 vulnerabilidades_por_chave[chave].id, equipamento_cadastrado.id
             )
 
+        ids_por_nome[equipamento_cadastrado.nome] = equipamento_cadastrado.id
         print(
             f"Equipamento '{equipamento_cadastrado.nome}' cadastrado "
             f"(ID {equipamento_cadastrado.id})."
         )
 
+    for nome, nome_de_quem_depende, fator in DEPENDENCIAS_FICTICIAS:
+        servico_de_dependencias.salvar(
+            ids_por_nome[nome], ids_por_nome[nome_de_quem_depende], fator
+        )
+
     print(
-        f"\n{len(EQUIPAMENTOS_FICTICIOS)} equipamentos e "
-        f"{len(VULNERABILIDADES_FICTICIAS)} vulnerabilidades fictícios "
+        f"\n{len(EQUIPAMENTOS_FICTICIOS)} equipamentos, "
+        f"{len(VULNERABILIDADES_FICTICIAS)} vulnerabilidades e "
+        f"{len(DEPENDENCIAS_FICTICIAS)} dependências fictícios "
         "cadastrados com sucesso."
     )
     banco_de_dados.fechar()

@@ -1,21 +1,27 @@
-"""Interface de texto: expõe todo o CRUD de equipamentos e vulnerabilidades por
-um menu no terminal (RNF08).
+"""Interface de texto: expõe todo o CRUD de equipamentos e vulnerabilidades,
+além da análise de risco, por um menu no terminal (RNF08).
 
 Esta classe não conhece SQL nem regras de negócio: ela só lê dados do
-teclado, chama os serviços da aplicação (EquipamentoService e
-VulnerabilidadeService) e imprime o resultado.
+teclado, chama os serviços da aplicação (EquipamentoService,
+VulnerabilidadeService, DependenciaService e AnaliseDeRiscoService) e
+imprime o resultado.
 """
 
 from typing import List, Optional, Sequence, Type, TypeVar, Union
 
+import numpy as np
+
 from app.exceptions import (
     EquipamentoNaoEncontradoError,
     ErroDeValidacao,
+    SistemaNaoInvertivelError,
     VulnerabilidadeNaoEncontradaError,
 )
 from app.models.enums import StatusVulnerabilidade, rotulo_amigavel
 from app.models.equipamento import TIPOS_DE_EQUIPAMENTO, Equipamento
 from app.models.vulnerabilidade import Vulnerabilidade
+from app.services.analise_de_risco_service import AnaliseDeRiscoService
+from app.services.dependencia_service import DependenciaService
 from app.services.equipamento_service import EquipamentoService
 from app.services.vulnerabilidade_service import VulnerabilidadeService
 
@@ -24,15 +30,20 @@ T = TypeVar("T", bound=Union[Equipamento, Vulnerabilidade])
 
 
 class InterfaceDeTexto:
-    """Menu textual com o CRUD completo de equipamentos e vulnerabilidades."""
+    """Menu textual com o CRUD completo de equipamentos e vulnerabilidades e
+    com a análise de risco."""
 
     def __init__(
         self,
         servico_de_equipamentos: EquipamentoService,
         servico_de_vulnerabilidades: VulnerabilidadeService,
+        servico_de_dependencias: DependenciaService,
+        servico_de_analise_de_risco: AnaliseDeRiscoService,
     ):
         self._servico_de_equipamentos = servico_de_equipamentos
         self._servico_de_vulnerabilidades = servico_de_vulnerabilidades
+        self._servico_de_dependencias = servico_de_dependencias
+        self._servico_de_analise_de_risco = servico_de_analise_de_risco
 
     def executar(self) -> None:
         """Laço principal do menu: roda até o usuário escolher sair."""
@@ -55,6 +66,8 @@ class InterfaceDeTexto:
                     self._gerenciar_vulnerabilidades_de_um_equipamento()
                 elif opcao == "7":
                     self._menu_do_catalogo_de_vulnerabilidades()
+                elif opcao == "8":
+                    self._menu_de_analise_de_risco()
                 elif opcao == "0":
                     print("Encerrando a aplicação.")
                     return
@@ -74,6 +87,7 @@ class InterfaceDeTexto:
         print("5 - Excluir equipamento")
         print("6 - Gerenciar vulnerabilidades de um equipamento")
         print("7 - Catálogo de vulnerabilidades")
+        print("8 - Análise de risco")
         print("0 - Sair")
 
     # --- Equipamentos: Create -----------------------------------------------
@@ -624,6 +638,184 @@ class InterfaceDeTexto:
 
         if self._desassociar(vulnerabilidade, equipamento):
             print("Equipamento removido da vulnerabilidade.")
+
+    # --- Análise de risco -----------------------------------------------
+
+    def _menu_de_analise_de_risco(self) -> None:
+        while True:
+            print("\n=== ANÁLISE DE RISCO ===")
+            print("1 - Calcular risco próprio e risco efetivo dos equipamentos")
+            print("2 - Exibir matrizes do modelo (M, v, f e A)")
+            print("3 - Listar dependências entre equipamentos")
+            print("4 - Cadastrar ou alterar dependência")
+            print("5 - Remover dependência")
+            print("0 - Voltar")
+            opcao = input("Escolha uma opção: ").strip()
+
+            if opcao == "1":
+                self._exibir_riscos()
+            elif opcao == "2":
+                self._exibir_matrizes_do_modelo()
+            elif opcao == "3":
+                self._listar_dependencias()
+            elif opcao == "4":
+                self._salvar_dependencia()
+            elif opcao == "5":
+                self._remover_dependencia()
+            elif opcao == "0":
+                return
+            else:
+                print("Opção inválida. Tente novamente.\n")
+
+    def _exibir_riscos(self) -> None:
+        try:
+            resultado = self._servico_de_analise_de_risco.calcular()
+        except SistemaNaoInvertivelError as erro:
+            print(f"Erro: {erro}")
+            return
+
+        if not resultado.riscos:
+            print("Nenhum equipamento cadastrado.")
+            return
+
+        print("\n--- Risco dos equipamentos (do maior para o menor risco efetivo) ---")
+        print(
+            f"det(I - A) = {resultado.determinante:.4f} | "
+            f"número de condição = {resultado.numero_de_condicao:.4f}"
+        )
+        print(
+            f"{'ID':>4}  {'Nome':<28} {'Tipo':<20} {'Exposição':>9} "
+            f"{'Próprio':>9} {'Herdado':>9} {'Efetivo':>9}"
+        )
+        riscos_ordenados = sorted(
+            resultado.riscos, key=lambda risco: risco.risco_efetivo, reverse=True
+        )
+        for risco in riscos_ordenados:
+            equipamento = risco.equipamento
+            print(
+                f"{equipamento.id:>4}  {equipamento.nome[:28]:<28} "
+                f"{equipamento.ROTULO:<20} {equipamento.FATOR_DE_EXPOSICAO:>9.2f} "
+                f"{risco.risco_proprio:>9.2f} {risco.risco_herdado:>9.2f} "
+                f"{risco.risco_efetivo:>9.2f}"
+            )
+
+    def _exibir_matrizes_do_modelo(self) -> None:
+        modelo = self._servico_de_analise_de_risco.montar_modelo()
+        if not modelo.equipamentos:
+            print("Nenhum equipamento cadastrado.")
+            return
+
+        rotulos_das_linhas = [f"E{e.id}" for e in modelo.equipamentos]
+        rotulos_das_colunas = [f"V{v.id}" for v in modelo.vulnerabilidades]
+
+        print("\nLinhas = equipamentos (E<id>); colunas = vulnerabilidades (V<id>).")
+        print("\nM - matriz de incidência (1 = equipamento afetado):")
+        self._imprimir_matriz(
+            modelo.matriz_de_incidencia, rotulos_das_linhas, rotulos_das_colunas
+        )
+        print("\nv - vetor de severidade (nota CVSS de cada vulnerabilidade):")
+        self._imprimir_matriz(
+            modelo.vetor_de_severidade.reshape(1, -1), ["v"], rotulos_das_colunas
+        )
+        print("\nf - vetor de exposição (fator do tipo de cada equipamento):")
+        self._imprimir_matriz(
+            modelo.vetor_de_exposicao.reshape(1, -1), ["f"], rotulos_das_linhas
+        )
+        print("\nA - matriz de dependências (linha depende da coluna):")
+        self._imprimir_matriz(
+            modelo.matriz_de_dependencias, rotulos_das_linhas, rotulos_das_linhas
+        )
+
+    @staticmethod
+    def _imprimir_matriz(
+        matriz: np.ndarray,
+        rotulos_das_linhas: List[str],
+        rotulos_das_colunas: List[str],
+    ) -> None:
+        if matriz.size == 0:
+            print("    (vazia)")
+            return
+        print("      " + "".join(f"{rotulo:>7}" for rotulo in rotulos_das_colunas))
+        for rotulo, linha in zip(rotulos_das_linhas, matriz):
+            print(f"{rotulo:>6}" + "".join(f"{valor:>7.2f}" for valor in linha))
+
+    def _listar_dependencias(self) -> bool:
+        dependencias = self._servico_de_dependencias.listar_todas()
+        if not dependencias:
+            print("Nenhuma dependência cadastrada.")
+            return False
+        for dependencia in dependencias:
+            equipamento = self._servico_de_equipamentos.buscar_por_id(
+                dependencia.equipamento_id
+            )
+            depende_de = self._servico_de_equipamentos.buscar_por_id(
+                dependencia.depende_de_id
+            )
+            print(
+                f"[{equipamento.id}] {equipamento.nome} depende de "
+                f"[{depende_de.id}] {depende_de.nome} | "
+                f"Fator: {dependencia.fator:.2f}"
+            )
+        return True
+
+    def _salvar_dependencia(self) -> None:
+        print("\n--- Cadastrar ou alterar dependência ---")
+        print("Equipamento que DEPENDE de outro:")
+        equipamento = self._selecionar_equipamento_por_id()
+        if equipamento is None:
+            return
+        print(
+            "Soma atual dos fatores deste equipamento: "
+            f"{self._servico_de_dependencias.soma_dos_fatores(equipamento.id):.2f} "
+            "(a soma deve ficar menor que 1)."
+        )
+        print("Equipamento do qual ele depende:")
+        depende_de = self._selecionar_equipamento_por_id()
+        if depende_de is None:
+            return
+        fator = self._ler_fator_de_dependencia()
+        if fator is None:
+            return
+
+        try:
+            self._servico_de_dependencias.salvar(equipamento.id, depende_de.id, fator)
+        except (ErroDeValidacao, EquipamentoNaoEncontradoError) as erro:
+            print(f"Erro: {erro}")
+            return
+
+        print(
+            f"Dependência salva: '{equipamento.nome}' herda {fator:.0%} do risco "
+            f"de '{depende_de.nome}'."
+        )
+
+    def _remover_dependencia(self) -> None:
+        print("\n--- Remover dependência ---")
+        if not self._listar_dependencias():
+            return
+        texto_equipamento = input("ID do equipamento que depende: ").strip()
+        texto_depende_de = input("ID do equipamento do qual ele depende: ").strip()
+        if not (texto_equipamento.isdigit() and texto_depende_de.isdigit()):
+            print("Erro: informe números de ID válidos.")
+            return
+
+        try:
+            self._servico_de_dependencias.excluir(
+                int(texto_equipamento), int(texto_depende_de)
+            )
+        except ErroDeValidacao as erro:
+            print(f"Erro: {erro}")
+            return
+
+        print("Dependência removida com sucesso.")
+
+    @staticmethod
+    def _ler_fator_de_dependencia() -> Optional[float]:
+        texto_fator = input("Fator de dependência (0 a 0.99, ex.: 0.3): ").strip()
+        try:
+            return float(texto_fator.replace(",", "."))
+        except ValueError:
+            print("Erro: informe o fator como um número (ex.: 0.3).")
+            return None
 
     # --- Associações -------------------------------------------------------
 

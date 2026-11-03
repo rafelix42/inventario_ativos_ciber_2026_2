@@ -1,7 +1,11 @@
-# Este projeto não tem nenhuma dependência de terceiros: usa apenas
-# bibliotecas padrão do Python (sqlite3, enum, dataclasses,
-# pathlib, logging, typing, tempfile, unittest). Não há nada para instalar
-# com "pip install".
+# Dependências de terceiros (instalar com: pip install -r requirements.txt).
+#
+# numpy: álgebra linear da análise de risco (produto de matrizes,
+#        determinante, número de condição e resolução do sistema linear).
+numpy>=1.26
+#
+# As demais bibliotecas usadas são da biblioteca padrão do Python (sqlite3,
+# enum, dataclasses, pathlib, logging, typing, tempfile, unittest).
 #
 # Requisito mínimo: Python 3.9+ (testado com Python 3.13).
 #

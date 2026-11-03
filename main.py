@@ -9,11 +9,8 @@ import logging
 
 from app.cli.interface_texto import InterfaceDeTexto
 from app.logging_config import configurar_logging
-from app.repositories.equipamento_repository import EquipamentoRepository
 from app.repositories.database import ConexaoBancoDeDados
-from app.repositories.vulnerabilidade_repository import VulnerabilidadeRepository
-from app.services.equipamento_service import EquipamentoService
-from app.services.vulnerabilidade_service import VulnerabilidadeService
+from app.servicos import criar_servicos
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +21,14 @@ def iniciar_aplicacao() -> None:
     logger.info("Aplicação iniciada.")
 
     banco_de_dados = ConexaoBancoDeDados()
-    servico_de_equipamentos = EquipamentoService(EquipamentoRepository(banco_de_dados))
-    servico_de_vulnerabilidades = VulnerabilidadeService(
-        VulnerabilidadeRepository(banco_de_dados)
-    )
+    servicos = criar_servicos(banco_de_dados)
 
-    InterfaceDeTexto(servico_de_equipamentos, servico_de_vulnerabilidades).executar()
+    InterfaceDeTexto(
+        servicos.equipamentos,
+        servicos.vulnerabilidades,
+        servicos.dependencias,
+        servicos.analise_de_risco,
+    ).executar()
 
     banco_de_dados.fechar()
     logger.info("Aplicação encerrada.")

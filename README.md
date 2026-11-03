@@ -10,10 +10,11 @@ com persistência em banco de dados **SQLite**, operada por um menu no
 
 ## Como executar
 
-Não há nenhuma dependência para instalar com `pip` — o projeto usa só
-bibliotecas padrão do Python (veja `requirements.txt`).
+A única dependência externa é o **NumPy**, usado na análise de risco
+(veja `requirements.txt`):
 
 ```bash
+pip install -r requirements.txt
 python3 main.py
 ```
 
@@ -34,18 +35,23 @@ logs/                         # Log de auditoria (gerado em tempo de execução)
 tests/                        # Testes automatizados (unittest) do CRUD de equipamentos e vulnerabilidades
 app/
 ├── exceptions.py             # Exceções personalizadas da aplicação
+├── servicos.py               # Cria e conecta todos os serviços (usado por main e seed)
 ├── logging_config.py         # Configuração central do logging/auditoria
 ├── models/                   # Entidades e enumerações
 │   ├── enums.py               # Severidade, StatusVulnerabilidade
 │   ├── equipamento.py         # Equipamento e suas subclasses (Servidor, Roteador, ...)
-│   └── vulnerabilidade.py     # Entidade Vulnerabilidade
+│   ├── vulnerabilidade.py     # Entidade Vulnerabilidade
+│   └── dependencia.py         # Dependência entre dois equipamentos (matriz A)
 ├── repositories/             # Acesso direto ao SQLite (SQL puro)
 │   ├── database.py
 │   ├── equipamento_repository.py
-│   └── vulnerabilidade_repository.py
+│   ├── vulnerabilidade_repository.py
+│   └── dependencia_repository.py
 ├── services/                 # Regras de negócio, validações, cache em dicionário e logging
 │   ├── equipamento_service.py
-│   └── vulnerabilidade_service.py
+│   ├── vulnerabilidade_service.py
+│   ├── dependencia_service.py
+│   └── analise_de_risco_service.py  # Modelo linear de risco (matrizes com NumPy)
 └── cli/                      # Menu no terminal (interface de texto)
     └── interface_texto.py
 ```
@@ -102,6 +108,43 @@ várias vulnerabilidades (relação N:N). No banco de dados, a tabela
 Bancos criados por versões anteriores (com a coluna `equipamento_id` em
 `vulnerabilidades`) são migrados automaticamente ao abrir a aplicação, sem
 perder dados (`app/repositories/database.py`).
+
+## Análise de risco (modelo linear)
+
+Menu **8 - Análise de risco**. Estima o risco de cada equipamento a partir
+das vulnerabilidades dele e das dependências entre equipamentos. Todo o
+cálculo está em `app/services/analise_de_risco_service.py`.
+
+Com n equipamentos e m vulnerabilidades:
+
+| Símbolo | Tamanho | Significado |
+|---------|---------|-------------|
+| `M`     | n x m   | Matriz de incidência: `M[i][j] = 1` se o equipamento i é afetado pela vulnerabilidade j |
+| `v`     | m       | Vetor de severidade: `v[j]` = nota CVSS da vulnerabilidade j |
+| `f`     | n       | Vetor de exposição: `f[i]` = `FATOR_DE_EXPOSICAO` da classe do equipamento i |
+| `b`     | n       | Risco próprio: `b = f * (M @ v)` |
+| `A`     | n x n   | Matriz de dependências: `A[i][j]` = fração do risco de j herdada por i |
+| `x`     | n       | Risco efetivo: solução de `(I - A) x = b` |
+
+- **Fator de exposição (polimorfismo):** cada subclasse de `Equipamento`
+  define o seu `FATOR_DE_EXPOSICAO` (ex.: `Firewall` = 1.5,
+  `Impressora` = 0.8), que pondera o risco próprio.
+- **Dependências:** cadastradas no menu 8 e gravadas na tabela
+  `dependencias`. Regras (`app/services/dependencia_service.py`): um
+  equipamento não depende de si mesmo, o fator fica em `[0, 1)` e a soma dos
+  fatores de um equipamento (soma da linha de A) deve ser menor que 1. Isso
+  torna `I - A` estritamente diagonal dominante e, portanto, invertível.
+- **Verificação de invertibilidade:** antes de resolver, o programa calcula
+  o determinante de `I - A` (comparado com uma tolerância, já que em ponto
+  flutuante ele quase nunca dá exatamente zero) e o número de condição
+  (que indica quantos dígitos de precisão se perdem). Se a matriz não for
+  invertível ou for mal condicionada, o usuário é avisado.
+- **Resolução:** `numpy.linalg.solve`, que resolve o sistema diretamente, sem
+  calcular a inversa.
+- A opção "Exibir matrizes do modelo" mostra M, v, f e A montadas a partir
+  dos dados cadastrados.
+- O cenário de validação com três equipamentos, resolvido à mão, está
+  documentado em `tests/test_analise_de_risco.py`.
 
 ## Funcionalidades
 
@@ -170,9 +213,9 @@ no arquivo quanto no console.
 
 ## Testes automatizados
 
-O CRUD completo de equipamentos e vulnerabilidades é coberto por testes
-automatizados com `unittest` (biblioteca padrão do Python, sem dependências
-extras). Para rodar toda a suíte a partir da raiz do projeto:
+O CRUD completo de equipamentos e vulnerabilidades e a análise de risco são
+cobertos por testes automatizados com `unittest` (biblioteca padrão do
+Python). Para rodar toda a suíte a partir da raiz do projeto:
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -187,6 +230,8 @@ tests/
 ├── test_vulnerabilidade_repository.py  # CRUD de vulnerabilidades + associações + trigger de exclusão
 ├── test_equipamento_service.py         # CRUD + validações (RNF02) + cache em dicionário (RF10/RNF05)
 ├── test_vulnerabilidade_service.py     # CRUD + nota CVSS + associações N:N + exclusão de equipamento
+├── test_dependencia_service.py         # Dependências entre equipamentos e suas regras
+├── test_analise_de_risco.py            # Matrizes M, v, f, A, invertibilidade e cenário resolvido à mão
 ├── test_database.py                    # Migração automática do formato antigo do banco
 └── test_severidade_cvss.py             # Classificação da nota CVSS nas faixas de severidade
 ```

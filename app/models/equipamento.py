@@ -21,6 +21,12 @@ class Equipamento:
 
     ROTULO: ClassVar[str] = "Equipamento"
 
+    # Peso aplicado ao risco próprio do equipamento na análise de risco
+    # (app/services/analise_de_risco_service.py). Cada subclasse redefine o
+    # seu valor: tipos mais expostos a ataques (ex.: Firewall, de frente para
+    # a internet) têm fator maior que 1; tipos menos expostos, menor que 1.
+    FATOR_DE_EXPOSICAO: ClassVar[float] = 1.0
+
     nome: str
     responsavel: str
     setor: str
@@ -33,6 +39,7 @@ class EstacaoDeTrabalho(Equipamento):
     """Computador de mesa usado por um colaborador."""
 
     ROTULO = "Estação de Trabalho"
+    FATOR_DE_EXPOSICAO = 1.0
 
 
 @dataclass
@@ -40,6 +47,7 @@ class Notebook(Equipamento):
     """Computador portátil."""
 
     ROTULO = "Notebook"
+    FATOR_DE_EXPOSICAO = 1.1
 
 
 @dataclass
@@ -47,6 +55,7 @@ class Servidor(Equipamento):
     """Servidor físico ou virtual."""
 
     ROTULO = "Servidor"
+    FATOR_DE_EXPOSICAO = 1.2
 
 
 @dataclass
@@ -54,6 +63,7 @@ class BancoDeDados(Equipamento):
     """Servidor ou instância de banco de dados."""
 
     ROTULO = "Banco de Dados"
+    FATOR_DE_EXPOSICAO = 1.3
 
 
 @dataclass
@@ -61,6 +71,7 @@ class SoftwareLicenciado(Equipamento):
     """Software cuja licença de uso é controlada pelo inventário."""
 
     ROTULO = "Software Licenciado"
+    FATOR_DE_EXPOSICAO = 0.9
 
 
 @dataclass
@@ -68,6 +79,7 @@ class Impressora(Equipamento):
     """Impressora ou multifuncional."""
 
     ROTULO = "Impressora"
+    FATOR_DE_EXPOSICAO = 0.8
 
 
 @dataclass
@@ -75,6 +87,7 @@ class Roteador(Equipamento):
     """Roteador de rede."""
 
     ROTULO = "Roteador"
+    FATOR_DE_EXPOSICAO = 1.3
 
 
 @dataclass
@@ -82,6 +95,7 @@ class Switch(Equipamento):
     """Switch de rede."""
 
     ROTULO = "Switch"
+    FATOR_DE_EXPOSICAO = 1.1
 
 
 @dataclass
@@ -89,6 +103,7 @@ class Firewall(Equipamento):
     """Firewall de rede."""
 
     ROTULO = "Firewall"
+    FATOR_DE_EXPOSICAO = 1.5
 
 
 # Subclasses que podem ser cadastradas, indexadas pelo nome da classe. O
