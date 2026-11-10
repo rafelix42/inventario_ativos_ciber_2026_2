@@ -1,14 +1,17 @@
-# Este projeto não tem nenhuma dependência de terceiros: usa apenas
-# bibliotecas padrão do Python (sqlite3, enum, dataclasses,
-# pathlib, logging, typing, tempfile, unittest). Não há nada para instalar
-# com "pip install".
+# Dependências da aplicação (instaladas também no container Docker).
+# Instalar com: pip install -r requirements.txt
 #
-# Requisito mínimo: Python 3.9+ (testado com Python 3.13).
+# fastapi: framework da API REST (rotas, validação do JSON, documentação /docs).
+# uvicorn: servidor que executa a aplicação FastAPI.
+# numpy:   álgebra linear da análise de risco (produto de matrizes,
+#          determinante, número de condição e resolução do sistema linear).
+fastapi>=0.115
+uvicorn>=0.30
+numpy>=1.26
 #
-# --- sqlite3 -----------------------------------------------------------
-# Não precisa ser instalado separadamente: o módulo `sqlite3` já vem
-# compilado dentro do próprio interpretador Python em praticamente toda
-# instalação padrão (python.org no Windows/macOS, e os pacotes `python3`
-# de distribuições Linux como Debian/Ubuntu/Fedora). Basta `import sqlite3`
-# funcionar, o que pode ser conferido com:
-#   python3 -c "import sqlite3; print('ok')"
+# As demais bibliotecas usadas são da biblioteca padrão do Python (sqlite3,
+# enum, dataclasses, pathlib, logging, typing, tempfile, unittest).
+# O módulo sqlite3 já vem embutido no Python.
+#
+# Ferramentas de desenvolvimento (testes e linters) ficam em
+# requirements-dev.txt.

@@ -16,3 +16,8 @@ class EquipamentoNaoEncontradoError(Exception):
 
 class VulnerabilidadeNaoEncontradaError(Exception):
     """Levantada quando uma vulnerabilidade não é localizada na base de dados."""
+
+
+class SistemaNaoInvertivelError(Exception):
+    """Levantada quando a matriz (I - A) da análise de risco não é invertível
+    (ou é tão mal condicionada que a solução não seria confiável)."""

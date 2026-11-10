@@ -1,0 +1,2653 @@
+{
+  "info": {
+    "name": "Inventário de Ativos de TI - Testes de integração",
+    "description": "Testes de integração da API do Inventário de Ativos de TI.\n\n**Como executar**\n1. Suba a API (`docker compose up -d` ou `python3 main.py`).\n2. Ajuste a variável `baseUrl` da coleção, se a API não estiver em `http://localhost:8000/api`.\n3. No Postman: clique com o botão direito na coleção > *Run collection* (execute as pastas na ordem).\n   Pela linha de comando: `npx newman run postman/inventario_api.postman_collection.json`.\n\n**A ordem importa**: as requisições guardam os ids criados em variáveis da coleção\n(`equipamento1Id`, `vulnerabilidade1Id`...) e as seguintes usam esses ids.\n\n**Dados**: a coleção cria os próprios equipamentos e vulnerabilidades, com um sufixo\naleatório no nome (variável `sufixo`), e apaga tudo na pasta 7. Por isso pode rodar\nmesmo com outros dados no banco. Ainda assim, prefira um banco de teste\n(`CAMINHO_DO_BANCO=data/teste_postman.db python3 main.py`), porque a execução gera\nlinhas no log de auditoria e consome ids.\n\nO caso 409 (I - A não invertível) não é testado aqui: as regras de cadastro de\ndependências impedem que ele aconteça pela API. Ele é coberto em tests/test_api.py.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Gera, uma vez por execução, um sufixo aleatório só com letras (os nomes",
+          "// não aceitam caracteres especiais). Ele identifica os dados criados nesta",
+          "// execução, para a coleção poder rodar mesmo com outros dados no banco.",
+          "const primeiraRequisicao = pm.info.requestName === \"Saúde da API\";",
+          "if (primeiraRequisicao || !pm.collectionVariables.get(\"sufixo\")) {",
+          "    const letras = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\";",
+          "    let sufixo = \"\";",
+          "    for (let i = 0; i < 8; i++) {",
+          "        sufixo += letras[Math.floor(Math.random() * letras.length)];",
+          "    }",
+          "    pm.collectionVariables.set(\"sufixo\", sufixo);",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Executado depois de TODA requisição da coleção.",
+          "pm.test(\"Responde em menos de 2 segundos\", () => {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});",
+          "// 204 não tem corpo, e o preflight de CORS (OPTIONS) responde em texto.",
+          "if (pm.response.code !== 204 && pm.request.method !== \"OPTIONS\") {",
+          "    pm.test(\"Resposta em JSON\", () => {",
+          "        pm.response.to.have.header(\"Content-Type\");",
+          "        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api"
+    },
+    {
+      "key": "origemDoFrontend",
+      "value": "http://localhost:5173"
+    },
+    {
+      "key": "sufixo",
+      "value": ""
+    },
+    {
+      "key": "equipamento1Id",
+      "value": ""
+    },
+    {
+      "key": "equipamento2Id",
+      "value": ""
+    },
+    {
+      "key": "equipamento3Id",
+      "value": ""
+    },
+    {
+      "key": "vulnerabilidade1Id",
+      "value": ""
+    },
+    {
+      "key": "vulnerabilidade2Id",
+      "value": ""
+    },
+    {
+      "key": "vulnerabilidade3Id",
+      "value": ""
+    },
+    {
+      "key": "vulnerabilidadeTemporariaId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Opções e saúde",
+      "description": "Rotas de valores fixos usados pelo frontend e verificação de saúde.",
+      "item": [
+        {
+          "name": "Saúde da API",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"API está no ar\", () => pm.expect(pm.response.json()).to.eql({ status: \"ok\" }));",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/saude",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "saude"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tipos de equipamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const tipos = pm.response.json();",
+                  "pm.test(\"Lista os 9 tipos com classe, rótulo e fator de exposição\", () => {",
+                  "    pm.expect(tipos).to.have.lengthOf(9);",
+                  "    tipos.forEach((tipo) => {",
+                  "        pm.expect(tipo).to.have.all.keys(\"classe\", \"rotulo\", \"fator_de_exposicao\");",
+                  "    });",
+                  "});",
+                  "pm.test(\"Firewall tem fator de exposição 1.5\", () => {",
+                  "    const firewall = tipos.find((tipo) => tipo.classe === \"Firewall\");",
+                  "    pm.expect(firewall.fator_de_exposicao).to.eql(1.5);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tipos-de-equipamento",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tipos-de-equipamento"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Status de vulnerabilidade",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista os 4 status com valor e rótulo\", () => {",
+                  "    const valores = pm.response.json().map((opcao) => opcao.valor);",
+                  "    pm.expect(valores).to.eql([\"ABERTA\", \"EM_TRATAMENTO\", \"CORRIGIDA\", \"ACEITA_COMO_RISCO\"]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/status-de-vulnerabilidade",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "status-de-vulnerabilidade"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Severidades",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista as 5 severidades\", () => {",
+                  "    const valores = pm.response.json().map((opcao) => opcao.valor);",
+                  "    pm.expect(valores).to.eql([\"NENHUMA\", \"BAIXA\", \"MEDIA\", \"ALTA\", \"CRITICA\"]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/severidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "severidades"
+              ]
+            }
+          }
+        },
+        {
+          "name": "CORS: frontend autorizado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Preflight aceito\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Libera a origem do frontend\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"access-control-allow-origin\"))",
+                  "        .to.eql(pm.collectionVariables.get(\"origemDoFrontend\"));",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origemDoFrontend}}"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ]
+            },
+            "description": "Simula a requisição de verificação (preflight) que o navegador faz antes de um POST vindo do frontend."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Equipamentos",
+      "description": "CRUD de equipamentos. Cria os três equipamentos (estações de trabalho, fator de exposição 1.0) usados no restante da coleção.",
+      "item": [
+        {
+          "name": "Cadastrar equipamento Um",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 (cadastrado)\", () => pm.response.to.have.status(201));",
+                  "const equipamento = pm.response.json();",
+                  "pm.test(\"Devolve o equipamento com id e campos calculados\", () => {",
+                  "    pm.expect(equipamento.id).to.be.a(\"number\");",
+                  "    pm.expect(equipamento.nome).to.eql(`Postman ${pm.collectionVariables.get(\"sufixo\")} Um`);",
+                  "    pm.expect(equipamento.classe).to.eql(\"EstacaoDeTrabalho\");",
+                  "    pm.expect(equipamento.tipo).to.be.a(\"string\");",
+                  "    pm.expect(equipamento.fator_de_exposicao).to.eql(1);",
+                  "    pm.expect(equipamento.quantidade_de_vulnerabilidades).to.eql(0);",
+                  "});",
+                  "pm.collectionVariables.set(\"equipamento1Id\", equipamento.id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Postman {{sufixo}} Um\",\n  \"responsavel\": \"Equipe Postman\",\n  \"setor\": \"Testes\",\n  \"classe\": \"EstacaoDeTrabalho\",\n  \"descricao\": \"Criado pela colecao Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar equipamento Dois",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 (cadastrado)\", () => pm.response.to.have.status(201));",
+                  "const equipamento = pm.response.json();",
+                  "pm.test(\"Devolve o equipamento com id e campos calculados\", () => {",
+                  "    pm.expect(equipamento.id).to.be.a(\"number\");",
+                  "    pm.expect(equipamento.nome).to.eql(`Postman ${pm.collectionVariables.get(\"sufixo\")} Dois`);",
+                  "    pm.expect(equipamento.classe).to.eql(\"EstacaoDeTrabalho\");",
+                  "    pm.expect(equipamento.tipo).to.be.a(\"string\");",
+                  "    pm.expect(equipamento.fator_de_exposicao).to.eql(1);",
+                  "    pm.expect(equipamento.quantidade_de_vulnerabilidades).to.eql(0);",
+                  "});",
+                  "pm.collectionVariables.set(\"equipamento2Id\", equipamento.id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Postman {{sufixo}} Dois\",\n  \"responsavel\": \"Equipe Postman\",\n  \"setor\": \"Testes\",\n  \"classe\": \"EstacaoDeTrabalho\",\n  \"descricao\": \"Criado pela colecao Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar equipamento Tres",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 (cadastrado)\", () => pm.response.to.have.status(201));",
+                  "const equipamento = pm.response.json();",
+                  "pm.test(\"Devolve o equipamento com id e campos calculados\", () => {",
+                  "    pm.expect(equipamento.id).to.be.a(\"number\");",
+                  "    pm.expect(equipamento.nome).to.eql(`Postman ${pm.collectionVariables.get(\"sufixo\")} Tres`);",
+                  "    pm.expect(equipamento.classe).to.eql(\"EstacaoDeTrabalho\");",
+                  "    pm.expect(equipamento.tipo).to.be.a(\"string\");",
+                  "    pm.expect(equipamento.fator_de_exposicao).to.eql(1);",
+                  "    pm.expect(equipamento.quantidade_de_vulnerabilidades).to.eql(0);",
+                  "});",
+                  "pm.collectionVariables.set(\"equipamento3Id\", equipamento.id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Postman {{sufixo}} Tres\",\n  \"responsavel\": \"Equipe Postman\",\n  \"setor\": \"Testes\",\n  \"classe\": \"EstacaoDeTrabalho\",\n  \"descricao\": \"Criado pela colecao Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa tipo de equipamento inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  "    pm.test(\"Mensagem cita o campo 'classe'\", () => {",
+                  "        pm.expect(pm.response.json().detail).to.include(\"classe\");",
+                  "    });",
+                  "    ",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Postman Invalido\",\n  \"responsavel\": \"Ana\",\n  \"setor\": \"TI\",\n  \"classe\": \"Nave\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa campo obrigatório ausente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  "    pm.test(\"Mensagem em português indicando o campo\", () => {",
+                  "        pm.expect(pm.response.json().detail)",
+                  "            .to.eql(\"Campo 'responsavel': campo obrigatório não informado.\");",
+                  "    });",
+                  "    ",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Postman Invalido\",\n  \"setor\": \"TI\",\n  \"classe\": \"Servidor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa regra de negócio (responsável com número)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Postman Invalido\",\n  \"responsavel\": \"Ana 2\",\n  \"setor\": \"TI\",\n  \"classe\": \"Servidor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar equipamento pelo ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devolve o equipamento certo\", () => {",
+                  "    const equipamento = pm.response.json();",
+                  "    pm.expect(equipamento.id).to.eql(Number(pm.collectionVariables.get(\"equipamento1Id\")));",
+                  "    pm.expect(equipamento.responsavel).to.eql(\"Equipe Postman\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar equipamento inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "999999999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recusa ID que não é número",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "abc"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar equipamentos filtrando pelo nome",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"Encontra só os três equipamentos desta execução\", () => {",
+                  "    const encontrados = pm.response.json().map((equipamento) => equipamento.id);",
+                  "    pm.expect(encontrados).to.have.members([id(\"equipamento1Id\"), id(\"equipamento2Id\"), id(\"equipamento3Id\")]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos?nome={{sufixo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ],
+              "query": [
+                {
+                  "key": "nome",
+                  "value": "{{sufixo}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Atualizar equipamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const equipamento = pm.response.json();",
+                  "pm.test(\"Campos alterados e nome mantido\", () => {",
+                  "    pm.expect(equipamento.responsavel).to.eql(\"Equipe Postman Revisada\");",
+                  "    pm.expect(equipamento.setor).to.eql(\"Testes Integrados\");",
+                  "    pm.expect(equipamento.nome).to.eql(`Postman ${pm.collectionVariables.get(\"sufixo\")} Tres`);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento3Id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responsavel\": \"Equipe Postman Revisada\",\n  \"setor\": \"Testes Integrados\",\n  \"classe\": \"EstacaoDeTrabalho\",\n  \"descricao\": \"Atualizado pela colecao Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Vulnerabilidades",
+      "description": "Catálogo de vulnerabilidades. Cria as três vulnerabilidades do cenário de risco (CVSS 8.0, 5.0 e 2.0).",
+      "item": [
+        {
+          "name": "Cadastrar vulnerabilidade Um (CVSS 8.0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 (cadastrada)\", () => pm.response.to.have.status(201));",
+                  "const vulnerabilidade = pm.response.json();",
+                  "pm.test(\"Severidade calculada pela nota CVSS: ALTA\", () => {",
+                  "    pm.expect(vulnerabilidade.nota_cvss).to.eql(8.0);",
+                  "    pm.expect(vulnerabilidade.severidade).to.eql(\"ALTA\");",
+                  "    pm.expect(vulnerabilidade.status).to.eql(\"ABERTA\");",
+                  "    pm.expect(vulnerabilidade.ids_dos_equipamentos_afetados).to.eql([]);",
+                  "});",
+                  "pm.collectionVariables.set(\"vulnerabilidade1Id\", vulnerabilidade.id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman {{sufixo}} Um\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": 8.0,\n  \"status\": \"ABERTA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar vulnerabilidade Dois (CVSS 5.0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 (cadastrada)\", () => pm.response.to.have.status(201));",
+                  "const vulnerabilidade = pm.response.json();",
+                  "pm.test(\"Severidade calculada pela nota CVSS: MEDIA\", () => {",
+                  "    pm.expect(vulnerabilidade.nota_cvss).to.eql(5.0);",
+                  "    pm.expect(vulnerabilidade.severidade).to.eql(\"MEDIA\");",
+                  "    pm.expect(vulnerabilidade.status).to.eql(\"ABERTA\");",
+                  "    pm.expect(vulnerabilidade.ids_dos_equipamentos_afetados).to.eql([]);",
+                  "});",
+                  "pm.collectionVariables.set(\"vulnerabilidade2Id\", vulnerabilidade.id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman {{sufixo}} Dois\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": 5.0,\n  \"status\": \"ABERTA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar vulnerabilidade Tres (CVSS 2.0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 (cadastrada)\", () => pm.response.to.have.status(201));",
+                  "const vulnerabilidade = pm.response.json();",
+                  "pm.test(\"Severidade calculada pela nota CVSS: BAIXA\", () => {",
+                  "    pm.expect(vulnerabilidade.nota_cvss).to.eql(2.0);",
+                  "    pm.expect(vulnerabilidade.severidade).to.eql(\"BAIXA\");",
+                  "    pm.expect(vulnerabilidade.status).to.eql(\"ABERTA\");",
+                  "    pm.expect(vulnerabilidade.ids_dos_equipamentos_afetados).to.eql([]);",
+                  "});",
+                  "pm.collectionVariables.set(\"vulnerabilidade3Id\", vulnerabilidade.id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman {{sufixo}} Tres\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": 2.0,\n  \"status\": \"ABERTA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa status inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  "    pm.test(\"Mensagem cita o campo 'status'\", () => {",
+                  "        pm.expect(pm.response.json().detail).to.include(\"status\");",
+                  "    });",
+                  "    ",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman Invalida\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": 5,\n  \"status\": \"RESOLVIDA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa nota CVSS acima de 10",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman Invalida\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": 11,\n  \"status\": \"ABERTA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa nota CVSS que não é número",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman Invalida\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": \"alta\",\n  \"status\": \"ABERTA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Buscar vulnerabilidade pelo ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devolve a vulnerabilidade certa\", () => {",
+                  "    const vulnerabilidade = pm.response.json();",
+                  "    pm.expect(vulnerabilidade.id).to.eql(Number(pm.collectionVariables.get(\"vulnerabilidade1Id\")));",
+                  "    pm.expect(vulnerabilidade.nota_cvss).to.eql(8);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidade1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidade1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar vulnerabilidades",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"Contém as três vulnerabilidades desta execução\", () => {",
+                  "    const encontradas = pm.response.json().map((vulnerabilidade) => vulnerabilidade.id);",
+                  "    pm.expect(encontradas).to.include.members([id(\"vulnerabilidade1Id\"), id(\"vulnerabilidade2Id\"), id(\"vulnerabilidade3Id\")]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Atualizar vulnerabilidade",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Status alterado e severidade recalculada\", () => {",
+                  "    const vulnerabilidade = pm.response.json();",
+                  "    pm.expect(vulnerabilidade.status).to.eql(\"EM_TRATAMENTO\");",
+                  "    pm.expect(vulnerabilidade.nota_cvss).to.eql(2);",
+                  "    pm.expect(vulnerabilidade.severidade).to.eql(\"BAIXA\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidade3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidade3Id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman {{sufixo}} Tres\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": 2.0,\n  \"status\": \"EM_TRATAMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar vulnerabilidade temporária",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"vulnerabilidadeTemporariaId\", pm.response.json().id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Postman {{sufixo}} Temporaria\",\n  \"categoria\": \"Testes\",\n  \"nota_cvss\": 9.8,\n  \"status\": \"ABERTA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Excluir vulnerabilidade temporária",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (excluída)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidadeTemporariaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidadeTemporariaId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vulnerabilidade excluída não existe mais",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidadeTemporariaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidadeTemporariaId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Atribuição de vulnerabilidades",
+      "description": "Associa as vulnerabilidades aos equipamentos (matriz de incidência M): Um <- V1 e V2; Dois <- V2; Tres <- V3.",
+      "item": [
+        {
+          "name": "Atribuir V1 ao equipamento Um",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (atribuída)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}/vulnerabilidades/{{vulnerabilidade1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}",
+                "vulnerabilidades",
+                "{{vulnerabilidade1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Atribuir V2 ao equipamento Um",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (atribuída)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}/vulnerabilidades/{{vulnerabilidade2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}",
+                "vulnerabilidades",
+                "{{vulnerabilidade2Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Atribuir V2 ao equipamento Dois",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (atribuída)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento2Id}}/vulnerabilidades/{{vulnerabilidade2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento2Id}}",
+                "vulnerabilidades",
+                "{{vulnerabilidade2Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Atribuir V3 ao equipamento Tres",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (atribuída)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento3Id}}/vulnerabilidades/{{vulnerabilidade3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento3Id}}",
+                "vulnerabilidades",
+                "{{vulnerabilidade3Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recusa atribuição repetida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}/vulnerabilidades/{{vulnerabilidade1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}",
+                "vulnerabilidades",
+                "{{vulnerabilidade1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recusa vulnerabilidade inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}/vulnerabilidades/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}",
+                "vulnerabilidades",
+                "999999999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vulnerabilidades do equipamento Um",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"Equipamento Um tem V1 e V2\", () => {",
+                  "    const encontradas = pm.response.json().map((vulnerabilidade) => vulnerabilidade.id);",
+                  "    pm.expect(encontradas).to.have.members([id(\"vulnerabilidade1Id\"), id(\"vulnerabilidade2Id\")]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}/vulnerabilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}",
+                "vulnerabilidades"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Equipamentos afetados pela V2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"V2 afeta os equipamentos Um e Dois\", () => {",
+                  "    const encontrados = pm.response.json().map((equipamento) => equipamento.id);",
+                  "    pm.expect(encontrados).to.have.members([id(\"equipamento1Id\"), id(\"equipamento2Id\")]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidade2Id}}/equipamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidade2Id}}",
+                "equipamentos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Equipamento mostra a quantidade de vulnerabilidades",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Equipamento Um tem 2 vulnerabilidades\", () => {",
+                  "    pm.expect(pm.response.json().quantidade_de_vulnerabilidades).to.eql(2);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Dependências",
+      "description": "Monta a matriz de dependências A: Dois depende de Um (0.5) e Tres depende de Dois (0.5). Verifica as regras que garantem que (I - A) é invertível.",
+      "item": [
+        {
+          "name": "Cadastrar dependência Dois -> Um (fator 0.5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devolve a dependência salva\", () => {",
+                  "    pm.expect(pm.response.json()).to.eql({",
+                  "        equipamento_id: Number(pm.collectionVariables.get(\"equipamento2Id\")),",
+                  "        depende_de_id: Number(pm.collectionVariables.get(\"equipamento1Id\")),",
+                  "        fator: 0.5,",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento2Id}}/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento2Id}}",
+                "{{equipamento1Id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fator\": 0.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar dependência Tres -> Dois (fator 0.5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devolve a dependência salva\", () => {",
+                  "    pm.expect(pm.response.json()).to.eql({",
+                  "        equipamento_id: Number(pm.collectionVariables.get(\"equipamento3Id\")),",
+                  "        depende_de_id: Number(pm.collectionVariables.get(\"equipamento2Id\")),",
+                  "        fator: 0.5,",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento3Id}}/{{equipamento2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento3Id}}",
+                "{{equipamento2Id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fator\": 0.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa soma dos fatores maior ou igual a 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  "    pm.test(\"Mensagem explica o limite da soma\", () => {",
+                  "        pm.expect(pm.response.json().detail).to.include(\"menor que 1\");",
+                  "    });",
+                  "    ",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento2Id}}/{{equipamento3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento2Id}}",
+                "{{equipamento3Id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fator\": 0.6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa equipamento dependendo de si mesmo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento1Id}}/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento1Id}}",
+                "{{equipamento1Id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fator\": 0.3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa fator igual a 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento1Id}}/{{equipamento3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento1Id}}",
+                "{{equipamento3Id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fator\": 1.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recusa dependência de equipamento inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento1Id}}/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento1Id}}",
+                "999999999"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fator\": 0.3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar dependências do equipamento Dois",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"Só a dependência Dois -> Um\", () => {",
+                  "    pm.expect(pm.response.json()).to.eql([",
+                  "        { equipamento_id: id(\"equipamento2Id\"), depende_de_id: id(\"equipamento1Id\"), fator: 0.5 },",
+                  "    ]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias?equipamento_id={{equipamento2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias"
+              ],
+              "query": [
+                {
+                  "key": "equipamento_id",
+                  "value": "{{equipamento2Id}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Análise de risco",
+      "description": "Confere o cenário resolvido à mão (o mesmo de tests/test_analise_de_risco.py):\nb = M v = [13, 5, 2]; x = b + A x  =>  x1 = 13, x2 = 5 + 0.5*13 = 11.5, x3 = 2 + 0.5*11.5 = 7.75.",
+      "item": [
+        {
+          "name": "Risco de Um: próprio 13, efetivo 13",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const risco = pm.response.json();",
+                  "pm.test(\"Valores iguais aos calculados à mão\", () => {",
+                  "    pm.expect(risco.equipamento_id).to.eql(Number(pm.collectionVariables.get(\"equipamento1Id\")));",
+                  "    pm.expect(risco.risco_proprio).to.be.closeTo(13, 1e-9);",
+                  "    pm.expect(risco.risco_herdado).to.be.closeTo(0, 1e-9);",
+                  "    pm.expect(risco.risco_efetivo).to.be.closeTo(13, 1e-9);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analise-de-risco/equipamentos/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analise-de-risco",
+                "equipamentos",
+                "{{equipamento1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Risco de Dois: próprio 5, efetivo 11.5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const risco = pm.response.json();",
+                  "pm.test(\"Valores iguais aos calculados à mão\", () => {",
+                  "    pm.expect(risco.equipamento_id).to.eql(Number(pm.collectionVariables.get(\"equipamento2Id\")));",
+                  "    pm.expect(risco.risco_proprio).to.be.closeTo(5, 1e-9);",
+                  "    pm.expect(risco.risco_herdado).to.be.closeTo(6.5, 1e-9);",
+                  "    pm.expect(risco.risco_efetivo).to.be.closeTo(11.5, 1e-9);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analise-de-risco/equipamentos/{{equipamento2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analise-de-risco",
+                "equipamentos",
+                "{{equipamento2Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Risco de Tres: próprio 2, efetivo 7.75",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const risco = pm.response.json();",
+                  "pm.test(\"Valores iguais aos calculados à mão\", () => {",
+                  "    pm.expect(risco.equipamento_id).to.eql(Number(pm.collectionVariables.get(\"equipamento3Id\")));",
+                  "    pm.expect(risco.risco_proprio).to.be.closeTo(2, 1e-9);",
+                  "    pm.expect(risco.risco_herdado).to.be.closeTo(5.75, 1e-9);",
+                  "    pm.expect(risco.risco_efetivo).to.be.closeTo(7.75, 1e-9);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analise-de-risco/equipamentos/{{equipamento3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analise-de-risco",
+                "equipamentos",
+                "{{equipamento3Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Análise de todos os equipamentos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const analise = pm.response.json();",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"(I - A) é invertível e bem condicionada\", () => {",
+                  "    pm.expect(Math.abs(analise.determinante)).to.be.above(1e-10);",
+                  "    pm.expect(analise.numero_de_condicao).to.be.at.least(1).and.below(1e12);",
+                  "});",
+                  "pm.test(\"Ordenada do maior para o menor risco efetivo\", () => {",
+                  "    const efetivos = analise.riscos.map((risco) => risco.risco_efetivo);",
+                  "    const ordenados = [...efetivos].sort((a, b) => b - a);",
+                  "    pm.expect(efetivos).to.eql(ordenados);",
+                  "});",
+                  "pm.test(\"Inclui os equipamentos desta execução\", () => {",
+                  "    const encontrados = analise.riscos.map((risco) => risco.equipamento_id);",
+                  "    pm.expect(encontrados).to.include.members(",
+                  "        [id(\"equipamento1Id\"), id(\"equipamento2Id\"), id(\"equipamento3Id\")]",
+                  "    );",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analise-de-risco",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analise-de-risco"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Matrizes do modelo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const matrizes = pm.response.json();",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "// Posição (linha/coluna) de cada id nas matrizes.",
+                  "const linha = (nome) => matrizes.ids_dos_equipamentos.indexOf(id(nome));",
+                  "const coluna = (nome) => matrizes.ids_das_vulnerabilidades.indexOf(id(nome));",
+                  "const equipamentos = [\"equipamento1Id\", \"equipamento2Id\", \"equipamento3Id\"];",
+                  "const vulnerabilidades = [\"vulnerabilidade1Id\", \"vulnerabilidade2Id\", \"vulnerabilidade3Id\"];",
+                  "",
+                  "pm.test(\"Dimensões: M é n x m, A é n x n, v tem m e f tem n elementos\", () => {",
+                  "    const n = matrizes.ids_dos_equipamentos.length;",
+                  "    const m = matrizes.ids_das_vulnerabilidades.length;",
+                  "    pm.expect(matrizes.matriz_de_incidencia).to.have.lengthOf(n);",
+                  "    matrizes.matriz_de_incidencia.forEach((l) => pm.expect(l).to.have.lengthOf(m));",
+                  "    pm.expect(matrizes.matriz_de_dependencias).to.have.lengthOf(n);",
+                  "    matrizes.matriz_de_dependencias.forEach((l) => pm.expect(l).to.have.lengthOf(n));",
+                  "    pm.expect(matrizes.vetor_de_severidade).to.have.lengthOf(m);",
+                  "    pm.expect(matrizes.vetor_de_exposicao).to.have.lengthOf(n);",
+                  "});",
+                  "pm.test(\"Matriz de incidência M do cenário\", () => {",
+                  "    const M = equipamentos.map((e) =>",
+                  "        vulnerabilidades.map((v) => matrizes.matriz_de_incidencia[linha(e)][coluna(v)])",
+                  "    );",
+                  "    pm.expect(M).to.eql([[1, 1, 0], [0, 1, 0], [0, 0, 1]]);",
+                  "});",
+                  "pm.test(\"Vetor de severidade v do cenário\", () => {",
+                  "    const v = vulnerabilidades.map((nome) => matrizes.vetor_de_severidade[coluna(nome)]);",
+                  "    pm.expect(v).to.eql([8, 5, 2]);",
+                  "});",
+                  "pm.test(\"Matriz de dependências A do cenário\", () => {",
+                  "    const A = equipamentos.map((i) =>",
+                  "        equipamentos.map((j) => matrizes.matriz_de_dependencias[linha(i)][linha(j)])",
+                  "    );",
+                  "    pm.expect(A).to.eql([[0, 0, 0], [0.5, 0, 0], [0, 0.5, 0]]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analise-de-risco/matrizes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analise-de-risco",
+                "matrizes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Risco de equipamento inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analise-de-risco/equipamentos/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analise-de-risco",
+                "equipamentos",
+                "999999999"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Remoções e limpeza",
+      "description": "Testa as remoções e apaga tudo o que a coleção criou. Ao final, o banco fica como estava antes da execução.",
+      "item": [
+        {
+          "name": "Remover dependência Dois -> Um",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (removida)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento2Id}}/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento2Id}}",
+                "{{equipamento1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recusa remover dependência inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias/{{equipamento2Id}}/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias",
+                "{{equipamento2Id}}",
+                "{{equipamento1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remover V3 do equipamento Tres",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (removida)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento3Id}}/vulnerabilidades/{{vulnerabilidade3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento3Id}}",
+                "vulnerabilidades",
+                "{{vulnerabilidade3Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "V3 continua no catálogo, sem equipamentos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Não afeta mais nenhum equipamento\", () => {",
+                  "    pm.expect(pm.response.json().ids_dos_equipamentos_afetados).to.eql([]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidade3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidade3Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vulnerabilidades exclusivas do equipamento Um",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"Só V1 (V2 também afeta o equipamento Dois)\", () => {",
+                  "    pm.expect(pm.response.json().map((v) => v.id)).to.eql([id(\"vulnerabilidade1Id\")]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}/vulnerabilidades-exclusivas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}",
+                "vulnerabilidades-exclusivas"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Excluir equipamento Um",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const id = (nome) => Number(pm.collectionVariables.get(nome));",
+                  "pm.test(\"V1 foi excluída junto (era exclusiva)\", () => {",
+                  "    pm.expect(pm.response.json()).to.eql({",
+                  "        ids_das_vulnerabilidades_excluidas: [id(\"vulnerabilidade1Id\")],",
+                  "    });",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Equipamento Um não existe mais",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "V1 não existe mais",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro no formato {detail: texto}\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidade1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidade1Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "V2 continua, afetando só o equipamento Dois",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Afeta só o equipamento Dois\", () => {",
+                  "    pm.expect(pm.response.json().ids_dos_equipamentos_afetados)",
+                  "        .to.eql([Number(pm.collectionVariables.get(\"equipamento2Id\"))]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidade2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidade2Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Limpeza: excluir equipamento Dois",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"V2 foi excluída junto\", () => {",
+                  "    pm.expect(pm.response.json().ids_das_vulnerabilidades_excluidas)",
+                  "        .to.eql([Number(pm.collectionVariables.get(\"vulnerabilidade2Id\"))]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento2Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento2Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Limpeza: excluir equipamento Tres",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nenhuma vulnerabilidade excluída junto\", () => {",
+                  "    pm.expect(pm.response.json().ids_das_vulnerabilidades_excluidas).to.eql([]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos/{{equipamento3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos",
+                "{{equipamento3Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Limpeza: excluir V3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 (excluída)\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vulnerabilidades/{{vulnerabilidade3Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilidades",
+                "{{vulnerabilidade3Id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Nada desta execução ficou no banco",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nenhum equipamento desta execução\", () => {",
+                  "    pm.expect(pm.response.json()).to.eql([]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipamentos?nome={{sufixo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipamentos"
+              ],
+              "query": [
+                {
+                  "key": "nome",
+                  "value": "{{sufixo}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Nenhuma dependência desta execução ficou no banco",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const ids = [\"equipamento1Id\", \"equipamento2Id\", \"equipamento3Id\"]",
+                  "    .map((nome) => Number(pm.collectionVariables.get(nome)));",
+                  "pm.test(\"Dependências removidas junto com os equipamentos\", () => {",
+                  "    const sobras = pm.response.json().filter(",
+                  "        (d) => ids.includes(d.equipamento_id) || ids.includes(d.depende_de_id)",
+                  "    );",
+                  "    pm.expect(sobras).to.eql([]);",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dependencias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependencias"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
