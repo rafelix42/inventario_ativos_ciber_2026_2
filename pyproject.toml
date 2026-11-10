@@ -13,5 +13,5 @@ max-line-length = 88
 no-docstring-rgx = "^(_|test_|setUp$|tearDown$)"
 
 [tool.pylint.design]
-# Classes como InterfaceDeTexto expõem um único ponto de entrada público.
+# Esquemas e classes simples podem ter poucos (ou nenhum) métodos públicos.
 min-public-methods = 1

@@ -1,38 +1,46 @@
-"""Ponto de entrada da aplicação de Inventário de Ativos de TI.
+"""Ponto de entrada da API de Inventário de Ativos de TI.
 
-Este arquivo monta as dependências (banco de dados, repositórios e
-serviços) e inicia o menu no terminal. Toda a lógica da aplicação fica
-organizada dentro do pacote 'app'.
+Lê as configurações das variáveis de ambiente, configura o logging e cria a
+aplicação FastAPI. Toda a lógica fica organizada dentro do pacote 'app'.
+
+Executar localmente:
+    python3 main.py                 (http://127.0.0.1:8000/docs)
+No container, o Dockerfile executa:
+    uvicorn main:app --host 0.0.0.0 --port 8000
+
+Variáveis de ambiente (todas opcionais):
+    CAMINHO_DO_BANCO     arquivo SQLite (padrão: data/inventario.db)
+    ORIGENS_PERMITIDAS   endereços do frontend separados por vírgula
+                         (padrão: http://localhost:5173,http://localhost:3000)
+    HOST / PORTA         usados só com 'python3 main.py'
 """
 
-import logging
+import os
+from pathlib import Path
+from typing import List
 
-from app.cli.interface_texto import InterfaceDeTexto
+import uvicorn
+
+from app.api.aplicacao import ORIGENS_PADRAO, criar_aplicacao
 from app.logging_config import configurar_logging
-from app.repositories.database import ConexaoBancoDeDados
-from app.servicos import criar_servicos
-
-logger = logging.getLogger(__name__)
+from app.repositories.database import CAMINHO_PADRAO_DO_BANCO
 
 
-def iniciar_aplicacao() -> None:
-    """Configura o logging, monta as dependências e inicia o menu no terminal."""
-    configurar_logging()
-    logger.info("Aplicação iniciada.")
+def _ler_origens_permitidas() -> List[str]:
+    texto = os.environ.get("ORIGENS_PERMITIDAS", ",".join(ORIGENS_PADRAO))
+    return [origem.strip() for origem in texto.split(",") if origem.strip()]
 
-    banco_de_dados = ConexaoBancoDeDados()
-    servicos = criar_servicos(banco_de_dados)
 
-    InterfaceDeTexto(
-        servicos.equipamentos,
-        servicos.vulnerabilidades,
-        servicos.dependencias,
-        servicos.analise_de_risco,
-    ).executar()
+configurar_logging()
 
-    banco_de_dados.fechar()
-    logger.info("Aplicação encerrada.")
-
+app = criar_aplicacao(
+    caminho_do_banco=Path(os.environ.get("CAMINHO_DO_BANCO", CAMINHO_PADRAO_DO_BANCO)),
+    origens_permitidas=_ler_origens_permitidas(),
+)
 
 if __name__ == "__main__":
-    iniciar_aplicacao()
+    uvicorn.run(
+        app,
+        host=os.environ.get("HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORTA", "8000")),
+    )

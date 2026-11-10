@@ -1,0 +1,10 @@
+# Dependências de desenvolvimento: tudo da aplicação + testes e linters.
+# Instalar com: pip install -r requirements-dev.txt
+-r requirements.txt
+
+# Usado pelo TestClient do FastAPI nos testes da API (tests/test_api.py).
+httpx2
+
+black
+flake8
+pylint

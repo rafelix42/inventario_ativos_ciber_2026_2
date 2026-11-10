@@ -185,4 +185,4 @@ class EquipamentoService:
                 "Validação de equipamento falhou: tipo de equipamento inválido (%r).",
                 classe,
             )
-            raise ErroDeValidacao("Selecione um tipo de equipamento válido.")
+            raise ErroDeValidacao("Tipo de equipamento inválido.")

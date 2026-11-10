@@ -1,0 +1,12 @@
+# Arquivos que não entram na imagem Docker.
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+tests
+data
+logs
+*.md
+requirements-dev.txt

@@ -343,4 +343,4 @@ class VulnerabilidadeService:
             logger.warning(
                 "Validação de vulnerabilidade falhou: status inválido (%r).", status
             )
-            raise ErroDeValidacao("Selecione um status válido.")
+            raise ErroDeValidacao("Status de vulnerabilidade inválido.")
