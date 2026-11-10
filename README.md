@@ -6,22 +6,26 @@ Aluno: Raphael Felix
 
 **API REST** (FastAPI) de cadastro de equipamentos de TI e de suas
 vulnerabilidades, com análise de risco por modelo linear e persistência em
-banco de dados **SQLite**. A API é o backend de um futuro frontend em
-JavaScript.
+banco de dados **SQLite**, e um **frontend** em HTML, CSS e JavaScript puros
+(sem frameworks), servido por nginx em outro container.
 
 ## Como executar
 
 ### Com Docker (recomendado)
 
 ```bash
-docker compose up -d --build     # sobe a API em segundo plano
+docker compose up -d --build     # sobe a API e o frontend em segundo plano
 docker compose logs -f           # acompanha os logs
-docker compose down              # para a API
+docker compose down              # para tudo
 ```
 
-O container reinicia sozinho se cair (`restart: unless-stopped`) e tem um
-healthcheck que consulta `GET /api/saude`. O banco (`data/`) e o log de
-auditoria (`logs/`) ficam no computador hospedeiro, montados como volumes.
+- **Frontend:** `http://localhost:8080`
+- **API:** `http://localhost:8000` (documentação em `/docs`)
+
+Os dois containers reiniciam sozinhos se caírem (`restart: unless-stopped`) e
+têm healthcheck (`GET /api/saude` na API; a página inicial no frontend). O
+banco (`data/`) e o log de auditoria (`logs/`) ficam no computador
+hospedeiro, montados como volumes.
 
 ### Sem Docker
 
@@ -37,15 +41,19 @@ fica em **`http://localhost:8000/docs`**.
 Na primeira execução, o arquivo de banco de dados `data/inventario.db` é
 criado automaticamente com as tabelas necessárias. Para popular o banco com
 dados fictícios: `python3 seed_dados_teste.py` (ou, com Docker,
-`docker compose exec api python seed_dados_teste.py`).
+`docker compose exec api python seed_dados_teste.py`). Se a API já estiver
+rodando, reinicie-a depois do seed (`docker compose restart api`): ela mantém
+equipamentos e vulnerabilidades em cache na memória e só lê os dados novos
+ao iniciar.
 
 ### Configuração (variáveis de ambiente)
 
 | Variável             | Padrão                                         | Uso |
 |----------------------|------------------------------------------------|-----|
-| `ORIGENS_PERMITIDAS` | `http://localhost:5173,http://localhost:3000` | Endereços do frontend autorizados a chamar a API pelo navegador (CORS) |
+| `ORIGENS_PERMITIDAS` | `http://localhost:5173,http://localhost:3000` | Endereços do frontend autorizados a chamar a API pelo navegador (CORS). No `docker-compose.yml`: `http://localhost:8080,http://localhost:5173` |
 | `CAMINHO_DO_BANCO`   | `data/inventario.db`                           | Arquivo SQLite |
 | `HOST` / `PORTA`     | `127.0.0.1` / `8000`                           | Só para `python3 main.py` |
+| `API_URL` (frontend) | `http://localhost:8000/api`                    | Endereço da API **visto pelo navegador**. Ao iniciar, o container do frontend grava esse valor em `js/config.js` e no cabeçalho CSP |
 
 ## Rotas da API
 
@@ -112,7 +120,8 @@ main.py                       # Ponto de entrada: cria a API com as configuraç�
 requirements.txt              # Dependências da aplicação (também instaladas no container)
 requirements-dev.txt          # + testes e linters
 Dockerfile                    # Imagem da API
-docker-compose.yml            # Execução da API em container, com volumes e reinício automático
+docker-compose.yml            # API + frontend em containers, com volumes e reinício automático
+frontend/                     # Frontend (HTML, CSS e JS puros), com Dockerfile próprio (nginx)
 seed_dados_teste.py           # Script utilitário para popular o banco com dados fictícios
 data/                         # Banco de dados SQLite (gerado em tempo de execução)
 logs/                         # Log de auditoria (gerado em tempo de execução)
@@ -150,6 +159,57 @@ app/
         ├── analise_de_risco.py
         └── opcoes.py          # Tipos, status, severidades e saúde
 ```
+
+## Frontend
+
+HTML, CSS e JavaScript puros: sem frameworks, sem bibliotecas, sem `npm`
+nem etapa de build. Os scripts usam ES modules nativos do navegador
+(`<script type="module">`). O tema visual ("Wired") é inspirado na estética
+de *Serial Experiments Lain*: monitores CRT, linhas de varredura, fósforo
+verde, vermelho de alerta e fios elétricos no cabeçalho. Tudo é feito em
+CSS, sem imagens. As animações são desligadas para quem ativou "reduzir
+movimento" no sistema.
+
+```
+frontend/
+├── Dockerfile                  # nginx:alpine servindo public/
+├── nginx/
+│   ├── default.conf.template   # site + cabeçalhos de segurança (CSP com ${API_URL})
+│   └── 40-gerar-config.sh      # gera js/config.js com API_URL ao iniciar o container
+└── public/                     # tudo o que o navegador recebe
+    ├── index.html              # painel: estado da API, contagens, maiores riscos
+    ├── equipamentos.html       # lista, busca por nome, cadastro, edição, exclusão
+    ├── equipamento.html        # detalhes (?id=N): vulnerabilidades, dependências, risco
+    ├── vulnerabilidades.html   # catálogo + equipamentos afetados
+    ├── dependencias.html       # dependências entre equipamentos (matriz A)
+    ├── risco.html              # ranking de risco e matrizes M, v, f, A
+    ├── css/estilo.css          # tema e layout responsivo
+    └── js/
+        ├── config.js           # endereço da API (sobrescrito no container)
+        ├── api.js              # único arquivo que usa fetch; erros viram ErroDaApi
+        ├── ui.js               # criação de elementos, tabelas, mensagens, diálogos
+        └── <página>.js         # um script por página
+```
+
+- **Comunicação:** o navegador chama a API diretamente (CORS). Por isso,
+  `API_URL` é o endereço que o *navegador* enxerga. Não use
+  `http://api:8000`: esse nome só existe dentro da rede do Docker.
+- **Validação:** o HTML faz só o básico (`required`, `min`/`max`/`step`,
+  `pattern`). As regras completas ficam na API, e a mensagem `detail` dos
+  erros aparece na tela.
+- **Segurança:** dados da API são inseridos sempre como texto
+  (`textContent`), nunca como HTML, como defesa contra XSS. O nginx envia
+  uma Content-Security-Policy que só permite scripts do próprio site e
+  chamadas para `API_URL`. Por isso o HTML não tem scripts nem eventos
+  inline (`onclick`).
+- **Responsivo:** em telas estreitas, o menu vira uma faixa com rolagem
+  horizontal e as tabelas viram cartões (cada célula mostra o nome da
+  coluna). As matrizes da análise de risco rolam na horizontal.
+- **Sem Docker:** `python -m http.server 5173 -d frontend/public` e abra
+  `http://localhost:5173`. A porta 5173 já está liberada no CORS da API.
+  Abrir o arquivo HTML direto (`file://`) não funciona com ES modules.
+
+O roteiro de teste manual do frontend está em `frontend/README.md`.
 
 ## Arquitetura em camadas
 

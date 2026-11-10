@@ -10,3 +10,5 @@ data
 logs
 *.md
 requirements-dev.txt
+frontend
+postman

@@ -1,0 +1,36 @@
+# Configuração do site. ${API_URL} é substituído ao iniciar o container.
+server {
+    # IPv4 e IPv6: dentro do container, "localhost" resolve primeiro para o
+    # endereço IPv6 (::1), usado pelo healthcheck.
+    listen 80;
+    listen [::]:80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Não informa a versão do nginx nas respostas e nas páginas de erro.
+    server_tokens off;
+
+    # --- Cabeçalhos de segurança -------------------------------------------
+    # CSP: só carrega scripts, estilos e imagens do próprio site e só permite
+    # chamadas (fetch) para a API. Isso bloqueia scripts inline e de outros
+    # domínios, limitando o estrago de um eventual XSS.
+    # A barra final em "${API_URL}/" faz a regra valer para todas as rotas
+    # abaixo de /api (sem ela, só o caminho exato /api seria permitido).
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ${API_URL}/; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Frame-Options "DENY" always;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # config.js muda a cada subida do container: o navegador não deve guardá-lo.
+    location = /js/config.js {
+        add_header Cache-Control "no-store" always;
+        add_header Content-Security-Policy "default-src 'self'" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+}

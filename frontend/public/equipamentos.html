@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Equipamentos · Inventário de Ativos</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="css/estilo.css" />
+    <script type="module" src="js/equipamentos.js"></script>
+  </head>
+  <body>
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="topo">
+      <div class="topo-interno">
+        <a class="marca" href="index.html"
+          ><span class="marca-prompt">wired://</span>inventário<span class="cursor" aria-hidden="true">_</span></a
+        >
+        <nav aria-label="Principal">
+          <ul class="menu">
+            <li><a href="index.html">Painel</a></li>
+            <li><a href="equipamentos.html" aria-current="page">Equipamentos</a></li>
+            <li><a href="vulnerabilidades.html">Vulnerabilidades</a></li>
+            <li><a href="dependencias.html">Dependências</a></li>
+            <li><a href="risco.html">Risco</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="conteudo" class="conteudo">
+      <div class="cabecalho-pagina">
+        <p class="camada">layer:02</p>
+        <h1 class="titulo-glitch" data-texto="equipamentos">equipamentos</h1>
+        <p class="subtitulo">Ativos de TI cadastrados no inventário. Clique no nome para ver os detalhes.</p>
+      </div>
+
+      <div id="mensagens" class="mensagens" aria-live="polite"></div>
+
+      <section class="cartao">
+        <div class="barra-ferramentas">
+          <label class="campo campo-busca">
+            <span>Buscar por nome</span>
+            <input id="busca" type="search" placeholder="nome ou hostname" autocomplete="off" />
+          </label>
+          <button id="botao-novo" type="button" class="botao botao-primario">+ Novo equipamento</button>
+        </div>
+
+        <div class="tabela-container">
+          <table id="tabela-equipamentos" class="tabela-responsiva">
+            <thead>
+              <tr>
+                <th scope="col" class="numero">ID</th>
+                <th scope="col">Nome</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Responsável</th>
+                <th scope="col">Setor</th>
+                <th scope="col" class="numero">Vulnerab.</th>
+                <th scope="col"><span class="visualmente-oculto">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Cadastro e edição -->
+    <dialog id="dialogo-equipamento" aria-labelledby="titulo-dialogo-equipamento">
+      <form id="formulario-equipamento">
+        <div class="dialogo-cabecalho">
+          <h2 id="titulo-dialogo-equipamento">Novo equipamento</h2>
+        </div>
+        <div class="dialogo-corpo">
+          <div id="mensagens-formulario" class="mensagens" aria-live="assertive"></div>
+          <div class="campos">
+            <label class="campo campo-largo">
+              <span>Nome / hostname <span class="obrigatorio">*</span></span>
+              <input
+                name="nome"
+                required
+                maxlength="100"
+                pattern="[\p{L}\p{N} ]*\p{L}[\p{L}\p{N} ]*"
+                title="Letras, números e espaços; não pode ser só números."
+              />
+              <span id="dica-nome" class="dica" hidden>O nome não pode ser alterado depois do cadastro.</span>
+            </label>
+            <label class="campo">
+              <span>Responsável <span class="obrigatorio">*</span></span>
+              <input name="responsavel" required maxlength="100" pattern="[\p{L} ]+" title="Apenas letras e espaços." />
+            </label>
+            <label class="campo">
+              <span>Setor <span class="obrigatorio">*</span></span>
+              <input
+                name="setor"
+                required
+                maxlength="100"
+                pattern="[\p{L}\p{N} ]*\p{L}[\p{L}\p{N} ]*"
+                title="Letras, números e espaços; não pode ser só números."
+              />
+            </label>
+            <label class="campo campo-largo">
+              <span>Tipo <span class="obrigatorio">*</span></span>
+              <select name="classe" required></select>
+            </label>
+            <label class="campo campo-largo">
+              <span>Descrição</span>
+              <input
+                name="descricao"
+                maxlength="200"
+                pattern="[\p{L}\p{N} ]*\p{L}[\p{L}\p{N} ]*"
+                title="Letras, números e espaços; não pode ser só números."
+              />
+            </label>
+          </div>
+        </div>
+        <div class="dialogo-rodape">
+          <button type="button" class="botao" data-fechar>Cancelar</button>
+          <button type="submit" class="botao botao-primario">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <footer class="rodape">
+      Inventário de Ativos de TI · Cibersegurança UFU 2026-2 · <span>// todos estão conectados</span>
+    </footer>
+  </body>
+</html>
