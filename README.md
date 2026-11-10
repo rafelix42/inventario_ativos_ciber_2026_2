@@ -1,6 +1,6 @@
 # Inventário de Ativos de TI
 
-Repositório para armazenar os códigos do projeto das sprints 1 a 5 do curso de Cibersegurança da UFU 2026-2
+Repositório para armazenar os códigos do projeto do primeiro semestre do curso de Cibersegurança da UFU 2026-2
 
 Aluno: Raphael Felix
 
