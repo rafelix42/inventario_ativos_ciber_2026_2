@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dependências · Inventário de Ativos</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="css/estilo.css" />
+    <script type="module" src="js/dependencias.js"></script>
+  </head>
+  <body>
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="topo">
+      <div class="topo-interno">
+        <a class="marca" href="index.html"
+          ><span class="marca-prompt">wired://</span>inventário<span class="cursor" aria-hidden="true">_</span></a
+        >
+        <nav aria-label="Principal">
+          <ul class="menu">
+            <li><a href="index.html">Painel</a></li>
+            <li><a href="equipamentos.html">Equipamentos</a></li>
+            <li><a href="vulnerabilidades.html">Vulnerabilidades</a></li>
+            <li><a href="dependencias.html" aria-current="page">Dependências</a></li>
+            <li><a href="risco.html">Risco</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="conteudo" class="conteudo">
+      <div class="cabecalho-pagina">
+        <p class="camada">layer:04</p>
+        <h1 class="titulo-glitch" data-texto="dependências">dependências</h1>
+        <p class="subtitulo">
+          Quando um equipamento depende de outro, ele herda uma fração (o fator) do risco desse outro. Esses fatores
+          formam a matriz <span class="formula">A</span> da análise de risco.
+        </p>
+      </div>
+
+      <div id="mensagens" class="mensagens" aria-live="polite"></div>
+
+      <section class="cartao">
+        <div class="cartao-cabecalho">
+          <h2>Cadastrar ou alterar</h2>
+        </div>
+        <form id="formulario-dependencia">
+          <div class="campos">
+            <label class="campo">
+              <span>Equipamento <span class="obrigatorio">*</span></span>
+              <select name="equipamento_id" required></select>
+            </label>
+            <label class="campo">
+              <span>Depende de <span class="obrigatorio">*</span></span>
+              <select name="depende_de_id" required></select>
+            </label>
+            <label class="campo">
+              <span>Fator <span class="obrigatorio">*</span></span>
+              <input name="fator" type="number" required min="0" max="0.99" step="0.01" inputmode="decimal" />
+            </label>
+          </div>
+          <p id="info-soma" class="dica">
+            O fator deve ficar entre 0 e 1 (sem chegar a 1), e a soma dos fatores de um equipamento também deve ser
+            menor que 1. Se a dependência já existir, o fator é substituído.
+          </p>
+          <div class="grupo-botoes">
+            <button type="submit" class="botao botao-primario">Salvar dependência</button>
+            <button type="reset" class="botao">Limpar</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="cartao">
+        <div class="barra-ferramentas">
+          <label class="campo campo-busca">
+            <span>Mostrar dependências de</span>
+            <select id="filtro"></select>
+          </label>
+        </div>
+        <div class="tabela-container">
+          <table id="tabela-dependencias" class="tabela-responsiva">
+            <thead>
+              <tr>
+                <th scope="col">Equipamento</th>
+                <th scope="col">Depende de</th>
+                <th scope="col" class="numero">Fator</th>
+                <th scope="col"><span class="visualmente-oculto">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="rodape">
+      Inventário de Ativos de TI · Cibersegurança UFU 2026-2 · <span>// todos estão conectados</span>
+    </footer>
+  </body>
+</html>

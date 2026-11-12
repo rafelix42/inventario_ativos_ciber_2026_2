@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Análise de risco · Inventário de Ativos</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="css/estilo.css" />
+    <script type="module" src="js/risco.js"></script>
+  </head>
+  <body>
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="topo">
+      <div class="topo-interno">
+        <a class="marca" href="index.html"
+          ><span class="marca-prompt">wired://</span>inventário<span class="cursor" aria-hidden="true">_</span></a
+        >
+        <nav aria-label="Principal">
+          <ul class="menu">
+            <li><a href="index.html">Painel</a></li>
+            <li><a href="equipamentos.html">Equipamentos</a></li>
+            <li><a href="vulnerabilidades.html">Vulnerabilidades</a></li>
+            <li><a href="dependencias.html">Dependências</a></li>
+            <li><a href="risco.html" aria-current="page">Risco</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="conteudo" class="conteudo">
+      <div class="cabecalho-pagina">
+        <p class="camada">layer:05</p>
+        <h1 class="titulo-glitch" data-texto="análise de risco">análise de risco</h1>
+        <p class="subtitulo">
+          Risco próprio <span class="formula">b = f ⊙ (M·v)</span> e risco efetivo, solução de
+          <span class="formula">(I − A)·x = b</span>.
+        </p>
+      </div>
+
+      <div id="mensagens" class="mensagens" aria-live="polite"></div>
+
+      <section class="grade-indicadores" aria-label="Indicadores do modelo">
+        <div class="indicador">
+          <p class="indicador-rotulo">Equipamentos <span class="var">n</span></p>
+          <p class="indicador-valor" id="indicador-n">–</p>
+        </div>
+        <div class="indicador">
+          <p class="indicador-rotulo">Vulnerabilidades <span class="var">m</span></p>
+          <p class="indicador-valor" id="indicador-m">–</p>
+        </div>
+        <div class="indicador">
+          <p class="indicador-rotulo">det(I − A)</p>
+          <p class="indicador-valor" id="indicador-determinante">–</p>
+        </div>
+        <div class="indicador">
+          <p class="indicador-rotulo">Nº de condição</p>
+          <p class="indicador-valor" id="indicador-condicao">–</p>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <div class="cartao-cabecalho">
+          <h2>Ranking</h2>
+          <div class="legenda" aria-hidden="true">
+            <span class="legenda-propria">próprio</span>
+            <span class="legenda-herdada">herdado</span>
+          </div>
+        </div>
+        <div class="tabela-container">
+          <table id="tabela-riscos" class="tabela-responsiva">
+            <thead>
+              <tr>
+                <th scope="col" class="numero">#</th>
+                <th scope="col">Equipamento</th>
+                <th scope="col">Tipo</th>
+                <th scope="col" class="numero">Exposição <span class="var">f</span></th>
+                <th scope="col" class="numero">Próprio <span class="var">b</span></th>
+                <th scope="col" class="numero">Herdado</th>
+                <th scope="col" class="numero">Efetivo <span class="var">x</span></th>
+                <th scope="col" class="coluna-barra">Composição</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <div class="cartao-cabecalho">
+          <h2>Matrizes do modelo</h2>
+        </div>
+        <div id="matrizes"><p class="carregando">carregando</p></div>
+      </section>
+    </main>
+
+    <footer class="rodape">
+      Inventário de Ativos de TI · Cibersegurança UFU 2026-2 · <span>// todos estão conectados</span>
+    </footer>
+  </body>
+</html>

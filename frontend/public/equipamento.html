@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Equipamento · Inventário de Ativos</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="css/estilo.css" />
+    <script type="module" src="js/equipamento.js"></script>
+  </head>
+  <body>
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="topo">
+      <div class="topo-interno">
+        <a class="marca" href="index.html"
+          ><span class="marca-prompt">wired://</span>inventário<span class="cursor" aria-hidden="true">_</span></a
+        >
+        <nav aria-label="Principal">
+          <ul class="menu">
+            <li><a href="index.html">Painel</a></li>
+            <li><a href="equipamentos.html" aria-current="page">Equipamentos</a></li>
+            <li><a href="vulnerabilidades.html">Vulnerabilidades</a></li>
+            <li><a href="dependencias.html">Dependências</a></li>
+            <li><a href="risco.html">Risco</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="conteudo" class="conteudo">
+      <div class="cabecalho-pagina">
+        <p class="camada" id="camada">layer:02</p>
+        <h1 id="titulo" class="titulo-glitch" data-texto="equipamento">equipamento</h1>
+        <p class="subtitulo"><a href="equipamentos.html">← voltar para a lista</a></p>
+      </div>
+
+      <div id="mensagens" class="mensagens" aria-live="polite"></div>
+
+      <div id="conteudo-equipamento" hidden>
+        <div class="grade-duas">
+          <section class="cartao">
+            <div class="cartao-cabecalho">
+              <h2>Dados</h2>
+              <a id="link-editar" class="botao botao-pequeno" href="equipamentos.html">Editar</a>
+            </div>
+            <dl class="dados">
+              <dt>Nome</dt>
+              <dd id="dado-nome"></dd>
+              <dt>Tipo</dt>
+              <dd id="dado-tipo"></dd>
+              <dt>Responsável</dt>
+              <dd id="dado-responsavel"></dd>
+              <dt>Setor</dt>
+              <dd id="dado-setor"></dd>
+              <dt>Descrição</dt>
+              <dd id="dado-descricao"></dd>
+            </dl>
+          </section>
+
+          <section class="cartao">
+            <div class="cartao-cabecalho">
+              <h2>Risco</h2>
+              <a class="botao botao-pequeno" href="risco.html">Análise completa</a>
+            </div>
+            <p id="aviso-risco" class="texto-suave" hidden></p>
+            <dl id="dados-risco" class="dados">
+              <dt>Próprio <span class="formula">b</span></dt>
+              <dd id="risco-proprio">–</dd>
+              <dt>Herdado</dt>
+              <dd id="risco-herdado">–</dd>
+              <dt>Efetivo <span class="formula">x</span></dt>
+              <dd id="risco-efetivo">–</dd>
+            </dl>
+            <div id="barra-risco" class="bloco-barra"></div>
+          </section>
+        </div>
+
+        <section class="cartao">
+          <div class="cartao-cabecalho">
+            <h2>Vulnerabilidades</h2>
+            <a class="botao botao-pequeno" href="vulnerabilidades.html">Catálogo</a>
+          </div>
+          <div class="tabela-container">
+            <table id="tabela-vulnerabilidades" class="tabela-responsiva">
+              <thead>
+                <tr>
+                  <th scope="col" class="numero">ID</th>
+                  <th scope="col">Descrição</th>
+                  <th scope="col" class="numero">CVSS</th>
+                  <th scope="col">Severidade</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span class="visualmente-oculto">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <form id="formulario-atribuir" class="formulario-em-linha">
+            <label class="campo">
+              <span>Atribuir vulnerabilidade do catálogo</span>
+              <select name="vulnerabilidade_id" required></select>
+            </label>
+            <button type="submit" class="botao botao-primario">Atribuir</button>
+          </form>
+        </section>
+
+        <section class="cartao">
+          <div class="cartao-cabecalho">
+            <h2>Dependências</h2>
+            <a id="link-dependencias" class="botao botao-pequeno" href="dependencias.html">Gerenciar</a>
+          </div>
+          <div class="grade-duas">
+            <div>
+              <p class="texto-suave">
+                Este equipamento depende de (herda risco deles). Soma dos fatores:
+                <strong id="soma-dos-fatores">–</strong> (deve ser menor que 1).
+              </p>
+              <div class="tabela-container">
+                <table id="tabela-depende-de" class="tabela-responsiva">
+                  <thead>
+                    <tr>
+                      <th scope="col">Equipamento</th>
+                      <th scope="col" class="numero">Fator</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <p class="texto-suave">Equipamentos que dependem deste (herdam risco dele):</p>
+              <div class="tabela-container">
+                <table id="tabela-dependentes" class="tabela-responsiva">
+                  <thead>
+                    <tr>
+                      <th scope="col">Equipamento</th>
+                      <th scope="col" class="numero">Fator</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="rodape">
+      Inventário de Ativos de TI · Cibersegurança UFU 2026-2 · <span>// todos estão conectados</span>
+    </footer>
+  </body>
+</html>

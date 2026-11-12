@@ -1,8 +1,9 @@
-# Sobe a API em segundo plano:      docker compose up -d --build
-# Acompanha os logs:                docker compose logs -f
-# Para a API:                       docker compose down
+# Sobe a API e o frontend em segundo plano:  docker compose up -d --build
+# Acompanha os logs:                         docker compose logs -f
+# Para tudo:                                 docker compose down
 #
-# A API fica em http://localhost:8000 (documentação em /docs).
+# Frontend: http://localhost:8080
+# API:      http://localhost:8000 (documentação em /docs)
 services:
   api:
     build: .
@@ -11,7 +12,9 @@ services:
       - "8000:8000"
     environment:
       # Endereços do frontend que podem chamar a API (separados por vírgula).
-      ORIGENS_PERMITIDAS: "http://localhost:5173,http://localhost:3000"
+      # 8080: container do frontend; 5173: frontend servido localmente, sem
+      # Docker (python -m http.server 5173 -d frontend/public).
+      ORIGENS_PERMITIDAS: "http://localhost:8080,http://localhost:5173"
     volumes:
       # O banco de dados e o log de auditoria ficam no computador hospedeiro,
       # então não se perdem quando o container é recriado.
@@ -19,4 +22,18 @@ services:
       - ./logs:/app/logs
     # Reinicia a API automaticamente se ela cair ou se o servidor reiniciar,
     # para que ela permaneça no ar (requisito 3: no mínimo 24 horas).
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: inventario-frontend
+    ports:
+      - "8080:80"
+    environment:
+      # Endereço da API visto pelo NAVEGADOR do usuário. Não use
+      # http://api:8000: esse nome só existe dentro da rede do Docker, e quem
+      # faz as chamadas é o navegador, não o container do frontend.
+      API_URL: "http://localhost:8000/api"
+    depends_on:
+      - api
     restart: unless-stopped

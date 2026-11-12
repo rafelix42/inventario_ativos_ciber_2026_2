@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Painel · Inventário de Ativos</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="css/estilo.css" />
+    <script type="module" src="js/painel.js"></script>
+  </head>
+  <body>
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="topo">
+      <div class="topo-interno">
+        <a class="marca" href="index.html"
+          ><span class="marca-prompt">wired://</span>inventário<span class="cursor" aria-hidden="true">_</span></a
+        >
+        <nav aria-label="Principal">
+          <ul class="menu">
+            <li><a href="index.html" aria-current="page">Painel</a></li>
+            <li><a href="equipamentos.html">Equipamentos</a></li>
+            <li><a href="vulnerabilidades.html">Vulnerabilidades</a></li>
+            <li><a href="dependencias.html">Dependências</a></li>
+            <li><a href="risco.html">Risco</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="conteudo" class="conteudo">
+      <div class="cabecalho-pagina">
+        <p class="camada">layer:01</p>
+        <h1 class="titulo-glitch" data-texto="painel">painel</h1>
+        <p class="subtitulo">Visão geral do inventário de ativos de TI e das vulnerabilidades que os afetam.</p>
+      </div>
+
+      <div id="mensagens" class="mensagens" aria-live="polite"></div>
+
+      <section class="grade-indicadores" aria-label="Indicadores">
+        <div class="indicador">
+          <p class="indicador-rotulo">API</p>
+          <p class="indicador-valor" id="estado-api"><span class="ponto"></span>…</p>
+        </div>
+        <div class="indicador">
+          <p class="indicador-rotulo">Equipamentos</p>
+          <p class="indicador-valor" id="total-equipamentos">–</p>
+        </div>
+        <div class="indicador">
+          <p class="indicador-rotulo">Vulnerabilidades</p>
+          <p class="indicador-valor" id="total-vulnerabilidades">–</p>
+        </div>
+        <div class="indicador indicador-alerta">
+          <p class="indicador-rotulo">Abertas</p>
+          <p class="indicador-valor" id="total-abertas">–</p>
+        </div>
+        <div class="indicador indicador-alerta">
+          <p class="indicador-rotulo">Críticas</p>
+          <p class="indicador-valor" id="total-criticas">–</p>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <div class="cartao-cabecalho">
+          <h2>Maiores riscos</h2>
+          <a class="botao botao-pequeno" href="risco.html">Análise completa</a>
+        </div>
+        <p id="aviso-risco" class="texto-suave" hidden></p>
+        <div class="tabela-container">
+          <table id="tabela-maiores-riscos" class="tabela-responsiva">
+            <thead>
+              <tr>
+                <th scope="col">Equipamento</th>
+                <th scope="col">Tipo</th>
+                <th scope="col" class="numero">Risco efetivo</th>
+                <th scope="col" class="coluna-barra">Composição</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="rodape">
+      Inventário de Ativos de TI · Cibersegurança UFU 2026-2 · <span>// todos estão conectados</span>
+    </footer>
+  </body>
+</html>

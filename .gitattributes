@@ -1,0 +1,3 @@
+# Scripts de shell rodam dentro do container Linux e quebram com finais de
+# linha do Windows (CRLF). Força LF ao fazer checkout em qualquer sistema.
+*.sh text eol=lf

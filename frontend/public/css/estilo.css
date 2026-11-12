@@ -1,0 +1,1233 @@
+/* ==========================================================================
+   Tema "Wired"
+   Inspirado na estética de Serial Experiments Lain: monitores CRT antigos,
+   fundo quase preto, texto em fósforo, vermelho intenso como cor de alerta,
+   fios elétricos cruzando o céu e pequenas falhas ("glitches") de sinal.
+   Nenhuma imagem é usada: tudo é feito com CSS (e um SVG embutido).
+
+   Organização:
+     1. Variáveis (cores, fontes, espaçamentos)
+     2. Base e efeitos de tela (scanlines, vinheta)
+     3. Cabeçalho, menu e rodapé
+     4. Títulos e textos
+     5. Cartões, grades e indicadores
+     6. Botões e formulários
+     7. Tabelas (com versão em cartões para telas estreitas)
+     8. Etiquetas, mensagens e diálogos
+     9. Análise de risco (barras e matrizes)
+    10. Responsividade e acessibilidade
+   ========================================================================== */
+
+/* --- 1. Variáveis --------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  --fundo: #07060a;
+  --fundo-elevado: #0e0c13;
+  --superficie: #13111a;
+  --superficie-alta: #1b1824;
+  --borda: #2b2736;
+  --borda-forte: #463f58;
+
+  --texto: #d9d5e3;
+  --texto-suave: #8d879f;
+
+  --fosforo: #7cf0c5;
+  --fosforo-escuro: #2f8f72;
+  --vermelho: #e0203f;
+  --vermelho-escuro: #7a0f22;
+  --violeta: #a284e0;
+  --ambar: #e9b949;
+  --laranja: #ff7a3d;
+
+  --fonte: "Cascadia Mono", "Consolas", "DejaVu Sans Mono", "Liberation Mono",
+    "Courier New", monospace;
+
+  --espaco: clamp(1rem, 3vw, 2rem);
+  --largura-maxima: 75rem;
+  --brilho-fosforo: 0 0 6px rgb(124 240 197 / 0.45);
+  --brilho-vermelho: 0 0 8px rgb(224 32 63 / 0.55);
+}
+
+/* --- 2. Base e efeitos de tela -------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--fonte);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--texto);
+  background-color: var(--fundo);
+  /* Brilho vermelho e violeta difuso, como luz de monitor em um quarto escuro. */
+  background-image:
+    radial-gradient(ellipse at 100% 0%, rgb(224 32 63 / 0.1), transparent 55%),
+    radial-gradient(ellipse at 0% 100%, rgb(162 132 224 / 0.08), transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Linhas de varredura (scanlines) de um monitor CRT, sobre a página inteira. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.22) 0,
+    rgb(0 0 0 / 0.22) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Faixa clara que percorre a tela devagar, como a atualização de um CRT. */
+body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -20vh;
+  height: 20vh;
+  z-index: 1001;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(124 240 197 / 0.035),
+    transparent
+  );
+  animation: varredura 9s linear infinite;
+}
+
+@keyframes varredura {
+  to {
+    transform: translateY(140vh);
+  }
+}
+
+::selection {
+  background: var(--vermelho);
+  color: #fff;
+}
+
+a {
+  color: var(--fosforo);
+  text-decoration-color: var(--fosforo-escuro);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-shadow: var(--brilho-fosforo);
+  text-decoration-color: var(--fosforo);
+}
+
+:focus-visible {
+  outline: 2px solid var(--fosforo);
+  outline-offset: 2px;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Link "pular para o conteúdo": invisível até receber o foco do teclado. */
+.pular {
+  position: absolute;
+  left: 1rem;
+  top: -10rem;
+  z-index: 2000;
+  padding: 0.5rem 1rem;
+  background: var(--fosforo);
+  color: var(--fundo);
+}
+
+.pular:focus {
+  top: 1rem;
+}
+
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- 3. Cabeçalho, menu e rodapé ------------------------------------------ */
+
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: rgb(7 6 10 / 0.92);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid var(--borda);
+  /* Fios elétricos e um poste, desenhados em SVG e repetidos na horizontal. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='48' viewBox='0 0 600 48' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23332d42' stroke-width='1'%3E%3Cpath d='M0 12 Q150 34 300 12 T600 12'/%3E%3Cpath d='M0 20 Q150 42 300 20 T600 20'/%3E%3Cpath d='M0 28 Q150 48 300 28 T600 28'/%3E%3C/g%3E%3Cg fill='none' stroke='%234a2230' stroke-width='2'%3E%3Cpath d='M300 0V48M288 12H312M290 20H310M292 28H308'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 600px 48px;
+}
+
+.topo-interno {
+  max-width: var(--largura-maxima);
+  margin: 0 auto;
+  padding: 0.75rem var(--espaco);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+}
+
+.marca {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--texto);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.marca:hover {
+  text-shadow: none;
+}
+
+.marca-prompt {
+  color: var(--vermelho);
+  text-shadow: var(--brilho-vermelho);
+}
+
+.cursor {
+  color: var(--fosforo);
+  animation: piscar 1.1s steps(1) infinite;
+}
+
+@keyframes piscar {
+  50% {
+    opacity: 0;
+  }
+}
+
+.menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.menu a {
+  display: block;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--texto-suave);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.menu a:hover {
+  color: var(--fosforo);
+}
+
+.menu a[aria-current="page"] {
+  color: var(--fosforo);
+  border-bottom-color: var(--vermelho);
+  text-shadow: var(--brilho-fosforo);
+}
+
+.conteudo {
+  flex: 1;
+  width: 100%;
+  max-width: var(--largura-maxima);
+  margin: 0 auto;
+  padding: var(--espaco);
+}
+
+.rodape {
+  border-top: 1px solid var(--borda);
+  padding: 1rem var(--espaco);
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+
+.rodape span {
+  color: var(--vermelho);
+}
+
+/* --- 4. Títulos e textos -------------------------------------------------- */
+
+.cabecalho-pagina {
+  margin-bottom: 1.5rem;
+}
+
+/* Número da página no estilo "layer:01". */
+.camada {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--vermelho);
+  text-shadow: var(--brilho-vermelho);
+}
+
+h1 {
+  margin: 0.1rem 0 0.4rem;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+/* Efeito de falha de sinal: duas cópias do título deslocadas, em vermelho e
+   em fósforo, aparecem por um instante de tempos em tempos. */
+.titulo-glitch {
+  position: relative;
+  display: inline-block;
+}
+
+.titulo-glitch::before,
+.titulo-glitch::after {
+  content: attr(data-texto);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.titulo-glitch::before {
+  color: var(--vermelho);
+  clip-path: inset(0 0 55% 0);
+  animation: glitch-a 7s infinite steps(1);
+}
+
+.titulo-glitch::after {
+  color: var(--fosforo);
+  clip-path: inset(55% 0 0 0);
+  animation: glitch-b 7s infinite steps(1);
+}
+
+@keyframes glitch-a {
+  0%,
+  91%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+  92% {
+    opacity: 0.85;
+    transform: translate(-3px, -1px);
+  }
+  94% {
+    opacity: 0.85;
+    transform: translate(2px, 1px);
+  }
+}
+
+@keyframes glitch-b {
+  0%,
+  92%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+  93% {
+    opacity: 0.85;
+    transform: translate(3px, 1px);
+  }
+  95% {
+    opacity: 0.85;
+    transform: translate(-2px, 0);
+  }
+}
+
+.subtitulo {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--texto-suave);
+}
+
+h2 {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--texto);
+}
+
+h2::before {
+  content: "// ";
+  color: var(--vermelho);
+}
+
+.texto-suave {
+  color: var(--texto-suave);
+}
+
+.formula {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  color: var(--fosforo);
+  white-space: nowrap;
+  text-transform: none;
+}
+
+/* Variável matemática (b, x, f, n, m) dentro de rótulos em maiúsculas. */
+.var {
+  text-transform: none;
+  font-style: italic;
+  color: var(--fosforo);
+}
+
+/* Títulos que exibem um dado cadastrado (ex.: nome do equipamento) mantêm
+   as maiúsculas e minúsculas originais. */
+h1.titulo-dado {
+  text-transform: none;
+}
+
+/* --- 5. Cartões, grades e indicadores ------------------------------------- */
+
+.cartao {
+  position: relative;
+  margin-bottom: 1.5rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+}
+
+/* Cantos marcados, como a moldura de uma janela de terminal. */
+.cartao::before,
+.cartao::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+
+.cartao::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--vermelho);
+  border-left: 2px solid var(--vermelho);
+}
+
+.cartao::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid var(--fosforo-escuro);
+  border-right: 2px solid var(--fosforo-escuro);
+}
+
+.cartao-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.cartao-cabecalho h2 {
+  margin: 0;
+}
+
+.grade-indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: clamp(0.5rem, 2vw, 1rem);
+  margin-bottom: 1.5rem;
+}
+
+.grade-duas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 0 1.5rem;
+}
+
+.indicador {
+  padding: 1rem;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-left: 3px solid var(--fosforo-escuro);
+}
+
+.indicador-rotulo {
+  margin: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--texto-suave);
+}
+
+.indicador-valor {
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  color: var(--fosforo);
+  text-shadow: var(--brilho-fosforo);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.indicador-alerta {
+  border-left-color: var(--vermelho);
+}
+
+.indicador-alerta .indicador-valor {
+  color: var(--vermelho);
+  text-shadow: var(--brilho-vermelho);
+}
+
+/* Bolinha de estado da API. */
+.ponto {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: var(--texto-suave);
+  vertical-align: middle;
+}
+
+.ponto-online {
+  background: var(--fosforo);
+  box-shadow: var(--brilho-fosforo);
+  animation: pulsar 2s ease-in-out infinite;
+}
+
+.ponto-offline {
+  background: var(--vermelho);
+  box-shadow: var(--brilho-vermelho);
+}
+
+@keyframes pulsar {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Lista de rótulo/valor (dados de um equipamento). */
+.dados {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1.25rem;
+  margin: 0;
+}
+
+.dados dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--texto-suave);
+  padding-top: 0.15rem;
+}
+
+.dados dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- 6. Botões e formulários ---------------------------------------------- */
+
+.barra-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.barra-ferramentas .campo-busca {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.95rem;
+  font: inherit;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--texto);
+  background: var(--superficie-alta);
+  border: 1px solid var(--borda-forte);
+  border-radius: 0;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+.botao:hover {
+  color: var(--fosforo);
+  border-color: var(--fosforo);
+  text-shadow: none;
+}
+
+.botao-primario {
+  color: var(--fosforo);
+  border-color: var(--fosforo);
+  box-shadow: inset 0 0 12px rgb(124 240 197 / 0.12);
+}
+
+.botao-primario:hover {
+  color: var(--fundo);
+  background: var(--fosforo);
+}
+
+.botao-perigo {
+  color: var(--vermelho);
+  border-color: var(--vermelho-escuro);
+}
+
+.botao-perigo:hover {
+  color: #fff;
+  background: var(--vermelho);
+  border-color: var(--vermelho);
+}
+
+.botao-pequeno {
+  min-height: 2rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.7rem;
+}
+
+.botao:disabled {
+  opacity: 0.45;
+  cursor: progress;
+}
+
+.grupo-botoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.campo-largo {
+  grid-column: 1 / -1;
+}
+
+.campo > span:first-child {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--texto-suave);
+}
+
+.obrigatorio {
+  color: var(--vermelho);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.65rem;
+  font: inherit;
+  color: var(--texto);
+  background: var(--fundo);
+  border: 1px solid var(--borda-forte);
+  border-radius: 0;
+}
+
+textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--fosforo);
+  box-shadow: var(--brilho-fosforo);
+}
+
+input:read-only {
+  color: var(--texto-suave);
+  border-style: dashed;
+}
+
+/* Só marca o campo como inválido depois que o usuário mexeu nele. */
+input:user-invalid,
+select:user-invalid,
+textarea:user-invalid {
+  border-color: var(--vermelho);
+}
+
+.dica {
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+}
+
+.formulario-em-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.formulario-em-linha .campo {
+  flex: 1 1 14rem;
+}
+
+/* --- 7. Tabelas ----------------------------------------------------------- */
+
+.tabela-container {
+  overflow-x: auto;
+  border: 1px solid var(--borda);
+  background: var(--fundo-elevado);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--borda);
+}
+
+thead th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--texto-suave);
+  background: var(--superficie);
+  border-bottom-color: var(--borda-forte);
+  white-space: nowrap;
+}
+
+tbody tr:hover {
+  background: var(--superficie-alta);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.numero {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+td.vazio {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--texto-suave);
+  font-style: italic;
+}
+
+.acoes-grupo {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+/* --- 8. Etiquetas, mensagens e diálogos ----------------------------------- */
+
+.etiqueta {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.sev-NENHUMA {
+  color: var(--texto-suave);
+}
+.sev-BAIXA {
+  color: var(--fosforo);
+}
+.sev-MEDIA {
+  color: var(--ambar);
+}
+.sev-ALTA {
+  color: var(--laranja);
+}
+.sev-CRITICA {
+  color: #fff;
+  background: var(--vermelho);
+  border-color: var(--vermelho);
+  box-shadow: var(--brilho-vermelho);
+}
+
+.status-ABERTA {
+  color: var(--vermelho);
+}
+.status-EM_TRATAMENTO {
+  color: var(--ambar);
+}
+.status-CORRIGIDA {
+  color: var(--fosforo);
+}
+.status-ACEITA_COMO_RISCO {
+  color: var(--violeta);
+}
+
+.mensagens {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.mensagens:empty {
+  display: none;
+}
+
+.mensagem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-left: 3px solid var(--violeta);
+}
+
+.mensagem-texto::before {
+  content: "[info] ";
+  color: var(--violeta);
+}
+
+.mensagem-sucesso {
+  border-left-color: var(--fosforo);
+}
+.mensagem-sucesso .mensagem-texto::before {
+  content: "[ok] ";
+  color: var(--fosforo);
+}
+
+.mensagem-erro {
+  border-left-color: var(--vermelho);
+  background: rgb(122 15 34 / 0.18);
+}
+.mensagem-erro .mensagem-texto::before {
+  content: "[erro] ";
+  color: var(--vermelho);
+}
+
+.mensagem-aviso {
+  border-left-color: var(--ambar);
+}
+.mensagem-aviso .mensagem-texto::before {
+  content: "[aviso] ";
+  color: var(--ambar);
+}
+
+.mensagem-fechar {
+  flex: none;
+  padding: 0 0.3rem;
+  font: inherit;
+  color: var(--texto-suave);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.mensagem-fechar:hover {
+  color: var(--texto);
+}
+
+.carregando {
+  color: var(--texto-suave);
+}
+
+.carregando::after {
+  content: "_";
+  animation: piscar 1s steps(1) infinite;
+}
+
+dialog {
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  color: var(--texto);
+  background: var(--fundo-elevado);
+  border: 1px solid var(--borda-forte);
+  box-shadow:
+    0 0 0 1px var(--vermelho-escuro),
+    0 1.5rem 4rem rgb(0 0 0 / 0.75);
+}
+
+dialog::backdrop {
+  background: rgb(4 3 8 / 0.78);
+  backdrop-filter: blur(2px);
+}
+
+.dialogo-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--borda);
+  background: var(--superficie);
+}
+
+.dialogo-cabecalho h2 {
+  margin: 0;
+}
+
+.dialogo-corpo {
+  padding: 1.25rem;
+}
+
+.dialogo-corpo > * + * {
+  margin-top: 1rem;
+}
+
+.dialogo-corpo > :first-child,
+.dialogo-corpo > .mensagens:empty + * {
+  margin-top: 0;
+}
+
+/* Espaço entre blocos dentro de um cartão (tabela seguida de formulário etc.). */
+.cartao > * + .formulario-em-linha,
+.cartao > * + .tabela-container,
+.cartao > .tabela-container + * {
+  margin-top: 1rem;
+}
+
+.dialogo-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.9rem 1.25rem;
+  border-top: 1px solid var(--borda);
+}
+
+.lista-simples {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.lista-simples li {
+  margin-bottom: 0.25rem;
+}
+
+/* --- 9. Análise de risco -------------------------------------------------- */
+
+.barra-risco {
+  display: flex;
+  min-width: 6rem;
+  height: 0.8rem;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+}
+
+.parte-propria {
+  background: var(--vermelho);
+  box-shadow: var(--brilho-vermelho);
+}
+
+.parte-herdada {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--violeta) 0 3px,
+    rgb(162 132 224 / 0.45) 3px 6px
+  );
+}
+
+.bloco-barra {
+  margin-top: 1rem;
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+}
+
+.legenda span::before {
+  content: "";
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.4rem;
+  vertical-align: -0.1rem;
+}
+
+.legenda .legenda-propria::before {
+  background: var(--vermelho);
+}
+
+.legenda .legenda-herdada::before {
+  background: var(--violeta);
+}
+
+.coluna-barra {
+  width: 30%;
+  min-width: 8rem;
+}
+
+details.bloco-matriz {
+  margin-bottom: 1rem;
+  border: 1px solid var(--borda);
+  background: var(--fundo-elevado);
+}
+
+details.bloco-matriz > summary {
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+details.bloco-matriz > summary:hover {
+  color: var(--fosforo);
+}
+
+details.bloco-matriz[open] > summary {
+  border-bottom: 1px solid var(--borda);
+}
+
+.bloco-matriz .tabela-container {
+  border: 0;
+}
+
+.bloco-matriz p {
+  margin: 0.75rem 1rem;
+  font-size: 0.8rem;
+}
+
+table.matriz {
+  width: auto;
+  font-size: 0.8rem;
+}
+
+table.matriz th,
+table.matriz td {
+  padding: 0.35rem 0.6rem;
+  text-align: center;
+  border: 1px solid var(--borda);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A primeira coluna (nome do equipamento) fica parada ao rolar para o lado. */
+table.matriz th[scope="row"] {
+  position: sticky;
+  left: 0;
+  text-align: left;
+  white-space: nowrap;
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+table.matriz .zero {
+  color: var(--borda-forte);
+}
+
+table.matriz .nao-zero {
+  color: var(--fosforo);
+  text-shadow: var(--brilho-fosforo);
+}
+
+/* --- 10. Responsividade e acessibilidade ---------------------------------- */
+
+/* Telas médias: o menu vira uma faixa que rola na horizontal. */
+@media (max-width: 52rem) {
+  /* 'nowrap' é necessário: num flex em coluna com quebra de linha, cada
+     linha teria a largura do seu conteúdo (o menu inteiro), e o cabeçalho
+     ficaria mais largo que a tela. */
+  .topo-interno {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  .topo nav {
+    overflow-x: auto;
+    margin-inline: calc(var(--espaco) * -1);
+    padding-inline: var(--espaco);
+    scrollbar-width: thin;
+    scrollbar-color: var(--vermelho-escuro) transparent;
+  }
+
+  .menu {
+    flex-wrap: nowrap;
+  }
+}
+
+/* Telas estreitas (celular): tabelas com a classe 'tabela-responsiva' viram
+   uma lista de cartões, um por linha, com o nome da coluna ao lado de cada
+   valor (o nome vem do atributo data-label, preenchido pelo JavaScript). */
+@media (max-width: 40rem) {
+  body {
+    font-size: 0.9rem;
+  }
+
+  .tabela-container:has(> .tabela-responsiva) {
+    overflow: visible;
+    border: 0;
+    background: none;
+  }
+
+  .tabela-responsiva thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .tabela-responsiva,
+  .tabela-responsiva tbody,
+  .tabela-responsiva tr,
+  .tabela-responsiva td {
+    display: block;
+    width: 100%;
+  }
+
+  .tabela-responsiva tr {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.85rem;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-left: 2px solid var(--vermelho-escuro);
+  }
+
+  .tabela-responsiva td {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 35%) 1fr;
+    gap: 0.75rem;
+    padding: 0.3rem 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .tabela-responsiva td::before {
+    content: attr(data-label);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--texto-suave);
+    padding-top: 0.15rem;
+  }
+
+  .tabela-responsiva td.vazio {
+    display: block;
+  }
+
+  .tabela-responsiva td.vazio::before {
+    content: none;
+  }
+
+  /* Etiquetas e botões ficam do tamanho do conteúdo, sem esticar. */
+  .tabela-responsiva td > * {
+    justify-self: start;
+  }
+
+  .tabela-responsiva td > .barra-risco {
+    justify-self: stretch;
+  }
+
+  .tabela-responsiva .acoes-grupo {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .tabela-responsiva .coluna-barra {
+    width: 100%;
+  }
+
+  .dados {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .dados dd {
+    margin-bottom: 0.6rem;
+  }
+
+  .barra-ferramentas > .botao,
+  .formulario-em-linha > .botao {
+    flex: 1 1 100%;
+  }
+
+  .dialogo-rodape .botao {
+    flex: 1 1 auto;
+  }
+}
+
+/* Quem pediu ao sistema menos movimento não vê animações. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  body::after {
+    display: none;
+  }
+}
