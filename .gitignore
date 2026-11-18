@@ -35,3 +35,6 @@ htmlcov/
 
 # Banco de dados (gerado em tempo de execução)
 data/inventario.db
+
+# Certificado TLS e chave privada do proxy (nunca versionar a chave)
+certs/*.pem

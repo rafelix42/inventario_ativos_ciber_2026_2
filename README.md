@@ -7,7 +7,8 @@ Aluno: Raphael Felix
 **API REST** (FastAPI) de cadastro de equipamentos de TI e de suas
 vulnerabilidades, com análise de risco por modelo linear e persistência em
 banco de dados **SQLite**, e um **frontend** em HTML, CSS e JavaScript puros
-(sem frameworks), servido por nginx em outro container.
+(sem frameworks). O nginx do frontend também é o **proxy reverso com TLS**:
+único ponto de entrada, só em HTTPS.
 
 ## Como executar
 
@@ -19,13 +20,17 @@ docker compose logs -f           # acompanha os logs
 docker compose down              # para tudo
 ```
 
-- **Frontend:** `http://localhost:8080`
-- **API:** `http://localhost:8000` (documentação em `/docs`)
+- **Frontend:** `https://localhost`
+- **API:** `https://localhost/api` (ex.: `https://localhost/api/saude`)
+
+Na primeira subida, sem certificado em `certs/`, é gerado um certificado
+autoassinado, e o navegador mostra um aviso que precisa ser aceito uma vez.
+Veja [HTTPS e proxy reverso](#https-e-proxy-reverso).
 
 Os dois containers reiniciam sozinhos se caírem (`restart: unless-stopped`) e
 têm healthcheck (`GET /api/saude` na API; a página inicial no frontend). O
-banco (`data/`) e o log de auditoria (`logs/`) ficam no computador
-hospedeiro, montados como volumes.
+banco (`data/`), o log de auditoria (`logs/`) e o certificado TLS (`certs/`)
+ficam no computador hospedeiro, montados como volumes.
 
 ### Sem Docker
 
@@ -34,9 +39,11 @@ pip install -r requirements.txt
 python3 main.py
 ```
 
-Em ambos os casos, a API fica em `http://localhost:8000` e a **documentação
+Sem Docker, a API fica em `http://localhost:8000`, e a **documentação
 interativa** (Swagger), onde dá para testar todas as rotas pelo navegador,
-fica em **`http://localhost:8000/docs`**.
+fica em **`http://localhost:8000/docs`**. Com Docker, a documentação não é
+publicada: o proxy só encaminha `/api/`, e `/docs` fica restrita a quem
+roda a API localmente.
 
 Na primeira execução, o arquivo de banco de dados `data/inventario.db` é
 criado automaticamente com as tabelas necessárias. Para popular o banco com
@@ -50,10 +57,12 @@ ao iniciar.
 
 | Variável             | Padrão                                         | Uso |
 |----------------------|------------------------------------------------|-----|
-| `ORIGENS_PERMITIDAS` | `http://localhost:5173,http://localhost:3000` | Endereços do frontend autorizados a chamar a API pelo navegador (CORS). No `docker-compose.yml`: `http://localhost:8080,http://localhost:5173` |
+| `ORIGENS_PERMITIDAS` | `http://localhost:5173,http://localhost:3000` | Endereços do frontend autorizados a chamar a API pelo navegador (CORS). No `docker-compose.yml` é vazia: frontend e API estão na mesma origem |
 | `CAMINHO_DO_BANCO`   | `data/inventario.db`                           | Arquivo SQLite |
 | `HOST` / `PORTA`     | `127.0.0.1` / `8000`                           | Só para `python3 main.py` |
-| `API_URL` (frontend) | `http://localhost:8000/api`                    | Endereço da API **visto pelo navegador**. Ao iniciar, o container do frontend grava esse valor em `js/config.js` e no cabeçalho CSP |
+| `FORWARDED_ALLOW_IPS` (API) | `127.0.0.1`                             | IPs cujos cabeçalhos `X-Forwarded-*` o Uvicorn aceita. No `docker-compose.yml`: `*`, pois só o proxy alcança a API |
+| `PORTA_HTTPS` (compose) | `443`                                       | Porta do hospedeiro em que o proxy é publicado (ex.: `PORTA_HTTPS=8443 docker compose up -d`) |
+| `NOMES_DO_CERTIFICADO` (frontend) | vazio                             | Nomes ou IPs extras do certificado autoassinado, separados por vírgula (ex.: `inventario.exemplo.br,192.168.0.10`) |
 
 ## Rotas da API
 
@@ -86,10 +95,11 @@ estão em `/docs`.
 | GET    | `/tipos-de-equipamento`, `/status-de-vulnerabilidade`, `/severidades` | Opções para listas de seleção do frontend |
 | GET    | `/saude`                             | Verificação de saúde (healthcheck) |
 
-Exemplo de chamada a partir do frontend:
+Exemplo de chamada a partir do frontend (atrás do proxy, a API está na mesma
+origem):
 
 ```javascript
-const resposta = await fetch("http://localhost:8000/api/equipamentos", {
+const resposta = await fetch("/api/equipamentos", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -120,11 +130,12 @@ main.py                       # Ponto de entrada: cria a API com as configuraç�
 requirements.txt              # Dependências da aplicação (também instaladas no container)
 requirements-dev.txt          # + testes e linters
 Dockerfile                    # Imagem da API
-docker-compose.yml            # API + frontend em containers, com volumes e reinício automático
-frontend/                     # Frontend (HTML, CSS e JS puros), com Dockerfile próprio (nginx)
+docker-compose.yml            # API + frontend/proxy em containers, redes, volumes e reinício automático
+frontend/                     # Frontend (HTML, CSS e JS puros) e proxy reverso TLS, com Dockerfile próprio (nginx)
 seed_dados_teste.py           # Script utilitário para popular o banco com dados fictícios
 data/                         # Banco de dados SQLite (gerado em tempo de execução)
 logs/                         # Log de auditoria (gerado em tempo de execução)
+certs/                        # Certificado TLS do proxy (gerado ou fornecido; não versionado)
 tests/                        # Testes automatizados (unittest)
 postman/                      # Coleção Postman com os testes de integração da API
 app/
@@ -172,10 +183,10 @@ movimento" no sistema.
 
 ```
 frontend/
-├── Dockerfile                  # nginx:alpine servindo public/
+├── Dockerfile                  # nginx:alpine servindo public/ e encaminhando /api/
 ├── nginx/
-│   ├── default.conf.template   # site + cabeçalhos de segurança (CSP com ${API_URL})
-│   └── 40-gerar-config.sh      # gera js/config.js com API_URL ao iniciar o container
+│   ├── default.conf            # HTTPS (443), cabeçalhos de segurança e proxy de /api/
+│   └── 30-certificado-tls.sh   # gera um certificado autoassinado se certs/ estiver vazia
 └── public/                     # tudo o que o navegador recebe
     ├── index.html              # painel: estado da API, contagens, maiores riscos
     ├── equipamentos.html       # lista, busca por nome, cadastro, edição, exclusão
@@ -185,23 +196,23 @@ frontend/
     ├── risco.html              # ranking de risco e matrizes M, v, f, A
     ├── css/estilo.css          # tema e layout responsivo
     └── js/
-        ├── config.js           # endereço da API (sobrescrito no container)
+        ├── config.js           # endereço da API (vira "/api" na imagem Docker)
         ├── api.js              # único arquivo que usa fetch; erros viram ErroDaApi
         ├── ui.js               # criação de elementos, tabelas, mensagens, diálogos
         └── <página>.js         # um script por página
 ```
 
-- **Comunicação:** o navegador chama a API diretamente (CORS). Por isso,
-  `API_URL` é o endereço que o *navegador* enxerga. Não use
-  `http://api:8000`: esse nome só existe dentro da rede do Docker.
+- **Comunicação:** com Docker, o navegador chama `/api/...` na mesma origem
+  das páginas, e o nginx encaminha para a API. Sem CORS. Sem Docker, o
+  frontend chama `http://localhost:8000/api` diretamente (CORS).
 - **Validação:** o HTML faz só o básico (`required`, `min`/`max`/`step`,
   `pattern`). As regras completas ficam na API, e a mensagem `detail` dos
   erros aparece na tela.
 - **Segurança:** dados da API são inseridos sempre como texto
   (`textContent`), nunca como HTML, como defesa contra XSS. O nginx envia
-  uma Content-Security-Policy que só permite scripts do próprio site e
-  chamadas para `API_URL`. Por isso o HTML não tem scripts nem eventos
-  inline (`onclick`).
+  uma Content-Security-Policy que só permite scripts e chamadas (`fetch`)
+  para o próprio site. Por isso o HTML não tem scripts nem eventos inline
+  (`onclick`).
 - **Responsivo:** em telas estreitas, o menu vira uma faixa com rolagem
   horizontal e as tabelas viram cartões (cada célula mostra o nome da
   coluna). As matrizes da análise de risco rolam na horizontal.
@@ -210,6 +221,46 @@ frontend/
   Abrir o arquivo HTML direto (`file://`) não funciona com ES modules.
 
 O roteiro de teste manual do frontend está em `frontend/README.md`.
+
+## HTTPS e proxy reverso
+
+```
+Navegador ──HTTPS :443──> nginx (container frontend)
+                           ├── /       arquivos de frontend/public
+                           └── /api/   ──HTTP, rede interna──> API (container api, :8000)
+```
+
+- **Só a porta 443 é publicada.** Não existe servidor na porta 80: nada
+  trafega sem criptografia. A API não tem porta publicada e fica apenas na
+  rede `interna` do Docker, que também não tem saída para a internet.
+- **TLS:** só TLS 1.2 e 1.3, com cifras de sigilo direto (perfil
+  "intermediário" do Mozilla), HTTP/2 e HSTS.
+- **Mesma origem:** como as páginas e a API estão no mesmo endereço, não há
+  CORS, e a CSP só libera `fetch` para o próprio site.
+- **Limites:** corpo de requisição até 64 kB (acima disso, 413). Se a API
+  estiver fora do ar, o proxy responde 502 e o frontend mostra a mensagem de
+  falha de conexão.
+
+**Certificado.** O nginx lê `certs/certificado.pem` (certificado + cadeia
+intermediária) e `certs/chave.pem` (chave privada). Se não existirem, na
+primeira subida é gerado um **autoassinado** (válido por 365 dias, para
+`localhost`, `127.0.0.1` e os nomes de `NOMES_DO_CERTIFICADO`). Ele é
+reaproveitado nas subidas seguintes. Para gerar outro, apague os dois
+arquivos e reinicie o container.
+
+Em um servidor, use um certificado emitido por uma autoridade confiável:
+
+```bash
+cp /caminho/fullchain.pem certs/certificado.pem
+cp /caminho/privkey.pem   certs/chave.pem
+chmod 600 certs/chave.pem
+docker compose restart frontend     # ou, sem derrubar conexões:
+docker compose exec frontend nginx -s reload
+```
+
+Com Let's Encrypt, como a porta 80 não fica aberta, use o desafio DNS-01 do
+certbot. A chave privada nunca deve ir para o Git (`certs/*.pem` está no
+`.gitignore`).
 
 ## Arquitetura em camadas
 
@@ -401,6 +452,8 @@ atribuições e dependências, confere o cenário de risco resolvido à mão
   ```bash
   npx newman run postman/inventario_api.postman_collection.json
   # outra URL: --env-var baseUrl=http://servidor:8000/api
+  # via proxy (Docker), com certificado autoassinado:
+  #   --env-var baseUrl=https://localhost/api --insecure
   ```
 
 Os dados criados levam um sufixo aleatório no nome e são apagados no final,

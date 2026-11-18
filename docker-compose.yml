@@ -2,24 +2,28 @@
 # Acompanha os logs:                         docker compose logs -f
 # Para tudo:                                 docker compose down
 #
-# Frontend: http://localhost:8080
-# API:      http://localhost:8000 (documentação em /docs)
+# Único endereço de acesso: https://localhost (frontend em /, API em /api).
+# O nginx do frontend é o proxy reverso; a API não tem porta publicada e só
+# é alcançável pela rede interna do Docker.
 services:
   api:
     build: .
     container_name: inventario-api
-    ports:
-      - "8000:8000"
     environment:
-      # Endereços do frontend que podem chamar a API (separados por vírgula).
-      # 8080: container do frontend; 5173: frontend servido localmente, sem
-      # Docker (python -m http.server 5173 -d frontend/public).
-      ORIGENS_PERMITIDAS: "http://localhost:8080,http://localhost:5173"
+      # Frontend e API estão na mesma origem (atrás do proxy): nenhuma outra
+      # origem precisa chamar a API pelo navegador.
+      ORIGENS_PERMITIDAS: ""
+      # Confia nos cabeçalhos X-Forwarded-* enviados pelo proxy, para que o
+      # log de acesso mostre o IP real do cliente e a API saiba que a
+      # requisição chegou por HTTPS. Seguro porque só o proxy alcança a API.
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       # O banco de dados e o log de auditoria ficam no computador hospedeiro,
       # então não se perdem quando o container é recriado.
       - ./data:/app/data
       - ./logs:/app/logs
+    networks:
+      - interna
     # Reinicia a API automaticamente se ela cair ou se o servidor reiniciar,
     # para que ela permaneça no ar (requisito 3: no mínimo 24 horas).
     restart: unless-stopped
@@ -28,12 +32,28 @@ services:
     build: ./frontend
     container_name: inventario-frontend
     ports:
-      - "8080:80"
+      # Só HTTPS. Para usar outra porta no hospedeiro: PORTA_HTTPS=8443.
+      - "${PORTA_HTTPS:-443}:443"
     environment:
-      # Endereço da API visto pelo NAVEGADOR do usuário. Não use
-      # http://api:8000: esse nome só existe dentro da rede do Docker, e quem
-      # faz as chamadas é o navegador, não o container do frontend.
-      API_URL: "http://localhost:8000/api"
+      # Nomes extras do certificado autoassinado, separados por vírgula
+      # (ex.: "inventario.exemplo.br,192.168.0.10"). Só é usado quando
+      # certs/ está vazia.
+      NOMES_DO_CERTIFICADO: ""
+    volumes:
+      # certificado.pem e chave.pem. Se não existirem, um autoassinado é
+      # gerado aqui na primeira subida.
+      - ./certs:/etc/nginx/tls
+    networks:
+      - interna
+      - externa
     depends_on:
       - api
     restart: unless-stopped
+
+networks:
+  # Rede só entre os containers: sem acesso à internet e sem portas
+  # publicadas. A API fica apenas nela.
+  interna:
+    internal: true
+  # Rede com saída para o hospedeiro, necessária para publicar a porta 443.
+  externa:
