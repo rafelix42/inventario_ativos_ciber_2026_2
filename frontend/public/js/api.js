@@ -16,6 +16,13 @@ export class ErroDaApi extends Error {
   }
 }
 
+function erroDeConexao(status) {
+  return new ErroDaApi(
+    `Não foi possível conectar à API em ${API_URL}. Verifique se ela está no ar.`,
+    status,
+  );
+}
+
 async function requisitar(metodo, caminho, corpo) {
   const opcoes = { method: metodo, headers: { Accept: "application/json" } };
   if (corpo !== undefined) {
@@ -29,10 +36,7 @@ async function requisitar(metodo, caminho, corpo) {
   } catch {
     // fetch só falha assim quando não há resposta: API fora do ar, endereço
     // errado ou bloqueio de CORS.
-    throw new ErroDaApi(
-      `Não foi possível conectar à API em ${API_URL}. Verifique se ela está no ar.`,
-      0,
-    );
+    throw erroDeConexao(0);
   }
 
   // 204 = sucesso sem conteúdo (exclusões e atribuições).
@@ -42,6 +46,11 @@ async function requisitar(metodo, caminho, corpo) {
 
   const dados = await resposta.json().catch(() => null);
   if (!resposta.ok) {
+    // Atrás do proxy, a API fora do ar não gera falha de conexão: o nginx
+    // responde 502/503/504 com uma página HTML (sem o JSON da API).
+    if (dados === null && [502, 503, 504].includes(resposta.status)) {
+      throw erroDeConexao(resposta.status);
+    }
     const mensagem = dados?.detail ?? `A API respondeu com o erro ${resposta.status}.`;
     throw new ErroDaApi(mensagem, resposta.status);
   }

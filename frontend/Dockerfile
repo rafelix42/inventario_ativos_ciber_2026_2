@@ -1,30 +1,33 @@
-# Imagem do frontend do Inventário de Ativos de TI.
+# Imagem do frontend do Inventário de Ativos de TI, que também é o proxy
+# reverso de todo o sistema.
 #
-# Só arquivos estáticos (HTML, CSS e JavaScript), servidos pelo nginx. O
-# navegador chama a API diretamente, no endereço informado em API_URL.
-#
-# Construir e executar (veja também ../docker-compose.yml):
-#   docker build -t inventario-frontend .
-#   docker run -p 8080:80 -e API_URL=http://localhost:8000/api inventario-frontend
+# O nginx escuta só HTTPS (443): serve os arquivos estáticos em / e encaminha
+# /api/ para o container da API pela rede interna do Docker. Por isso deve
+# rodar pelo docker-compose.yml, junto com o serviço 'api'.
 
 FROM nginx:1.27-alpine
 
-# Endereço da API visto pelo NAVEGADOR (não pela rede interna do Docker).
-ENV API_URL=http://localhost:8000/api
+# openssl: gera um certificado autoassinado quando nenhum for fornecido.
+RUN apk add --no-cache openssl
 
-# Arquivos em /etc/nginx/templates/ têm as variáveis de ambiente (${API_URL})
-# substituídas ao iniciar o container e são gravados em /etc/nginx/conf.d/.
-COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+# Substitui o site padrão da imagem (que escuta na porta 80).
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # Scripts em /docker-entrypoint.d/ rodam ao iniciar o container, antes do nginx.
 # 'sed' remove um eventual CR (\r) caso o arquivo tenha sido salvo no Windows.
-COPY nginx/40-gerar-config.sh /docker-entrypoint.d/40-gerar-config.sh
-RUN sed -i 's/\r$//' /docker-entrypoint.d/40-gerar-config.sh \
-    && chmod +x /docker-entrypoint.d/40-gerar-config.sh
+COPY nginx/30-certificado-tls.sh /docker-entrypoint.d/30-certificado-tls.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/30-certificado-tls.sh \
+    && chmod +x /docker-entrypoint.d/30-certificado-tls.sh
 
 COPY public /usr/share/nginx/html
 
-EXPOSE 80
+# A API está na mesma origem, em /api. O js/config.js do repositório aponta
+# para http://localhost:8000/api, usado só ao rodar o frontend sem Docker.
+RUN printf '// Gerado na construção da imagem (frontend/Dockerfile).\nexport const API_URL = "/api";\n' \
+    > /usr/share/nginx/html/js/config.js
 
+EXPOSE 443
+
+# --no-check-certificate: o certificado pode ser autoassinado.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -q --spider http://localhost/ || exit 1
+    CMD wget -q --spider --no-check-certificate https://localhost/ || exit 1

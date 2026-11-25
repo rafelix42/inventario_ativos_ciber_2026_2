@@ -13,7 +13,8 @@ docker compose exec api python seed_dados_teste.py
 docker compose restart api    # a API só lê os dados do seed ao iniciar
 ```
 
-Abra `http://localhost:8080`. Repita os testes de layout com a janela
+Abra `https://localhost` e aceite o aviso do certificado autoassinado (só na
+primeira vez). Repita os testes de layout com a janela
 estreita, ou com as ferramentas do desenvolvedor (F12) no modo dispositivo,
 em uma largura de ~390 px.
 
@@ -57,5 +58,7 @@ em uma largura de ~390 px.
 
 ### Geral
 - [ ] Nenhum erro de CSP no console do navegador (F12 → Console).
+- [ ] Na aba Rede (F12 → Network), todas as chamadas vão para `https://localhost/api/...` (mesma origem, sem requisições `OPTIONS` de CORS).
+- [ ] `http://localhost` não abre (não há nada na porta 80) e `https://localhost:8000` também não (a API não é publicada).
 - [ ] Navegação só pelo teclado (Tab/Enter/Esc) funciona nos diálogos.
 - [ ] No celular, nenhuma página rola na horizontal (só o menu e as matrizes).
